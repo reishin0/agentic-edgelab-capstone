@@ -1,0 +1,59 @@
+# Agentic EdgeLab
+
+Agentic EdgeLab is a local research assistant for quantitative analysts who need to test a relationship hypothesis and show how they reached a verdict. Its reference workflow tests whether two series share a stable long-run relationship. The researcher chooses the hypothesis, eligible observations and protocol. After exact approval, EdgeLab runs the approved steps and produces a verdict, evidence-linked report and reproducibility bundle.
+
+## Architecture
+
+1. A **Planner** receives the blinded question and approved method context. LangChain retrieval returns checked method notes. A bounded Tree-of-Thought search ranks eligible protocol branches before the Planner sees sample values.
+2. The **LangGraph controller** pauses for the local operator to approve the exact protocol digest. It checks scope, journals every transition in SQLite and dispatches deterministic statistical tools.
+3. The **Critic** reviews evidence and flags conflicts. Gate rules and the controller determine whether the workflow continues, stops, requests revision or remains unresolved.
+4. The **Reporter** explains the recorded verdict from verified evidence. Optional CrewAI role tasks advise inside the workflow. The local MCP interface and dashboard provide read-only inspection.
+
+The tools use statsmodels for ADF and KPSS, bidirectional Engle–Granger tests and stability diagnostics. The project includes local method notes and optional LM Studio and Pinecone integrations. See [architecture](ARCHITECTURE.rst), [message contracts](CONTRACTS.rst) and [deployment](DEPLOYMENT.rst).
+
+## Run the synthetic example
+
+From the repository root, create a clean environment with Python 3.12. Use its Python interpreter for the commands below.
+
+```sh
+python -m venv .venv
+```
+
+Activate it with `source .venv/bin/activate` on macOS or Linux, or `.\.venv\Scripts\Activate.ps1` in PowerShell. The minimal fixture requires only the standard library.
+
+```sh
+python -B -m edgelab
+python -B -m edgelab --approve-fixture --fixture support
+```
+
+For the integrated LangGraph and statistical tool demo, install the research dependencies. Use a new journal and copy the selected run ID and protocol SHA-256 from the planning output. The example uses generated synthetic data and needs zero provider credentials.
+
+```sh
+python -m pip install -e '.[research]'
+python -B -m edgelab.capstone --journal runtime/capstone-demo.sqlite plan --case shared-trend
+python -B -m edgelab.capstone --journal runtime/capstone-demo.sqlite execute --run RUN_ID --approve PROTOCOL_SHA256
+python -B -m edgelab.capstone --journal runtime/capstone-demo.sqlite report --run RUN_ID
+```
+
+The [synthetic example output](examples/synthetic-shared-trend.json) shows the milestone evidence and final verdict from this workflow.
+
+To exercise the offline suite with the optional components installed, see the dependency and telemetry setup in [deployment](DEPLOYMENT.rst) and run `python -B -m unittest discover -s tests`. For the discovery tests, run `python -B -m unittest discover -s research/pair_discovery` from the repository root. The repository includes the evaluation methods, synthetic inputs in the test harnesses and result summaries.
+
+## Evaluation
+
+| Study | Observed result |
+| --- | --- |
+| [Offline contracts](CONTRACTS.rst) | Tested authorization denials, blocking failures and evidence tampering against fixed regression criteria. |
+| [Matched-budget workflow comparison](research/workflow_comparison/REPORT.md) | Over 24 blinded cases, deterministic 100%, single agent 28.13% and CrewAI roles 30.21%. The observed 2.08 percentage-point gain over one agent fell below the 10-point threshold. The deterministic baseline had direct access to the encoded rules. |
+| [Independent stability validation](research/bootstrap_validation_20261114/REPORT.md) | 18,000 synthetic trials, each evaluated in three arms. The experimental bootstrap passed six stable-scenario gates and seven of twelve negative-scenario gates. EdgeLab retained CUSUM. [Aggregate results](research/bootstrap_validation_20261114/aggregate-results.json) |
+| [Point-in-time discovery](research/pair_discovery/DISCOVERY_PROTOCOL_DRAFT.md) | A development coverage check retained all 4,784 frozen pairs as unresolved because formation histories were incomplete. The market holdout is locked and untested. [Coverage summary](examples/development-coverage-summary.json) |
+
+Use the [workflow comparison protocol](research/workflow_comparison/PROTOCOL.rst) for the replayable stub demonstration and instructions for a separately configured local-model run. The [bootstrap protocol](research/bootstrap_validation_20261114/PROTOCOL.md) includes a self-check, the full synthetic study command and ledger verification.
+
+## Repository map
+
+- `edgelab/` contains the controller, role adapters, statistical tools, evidence contracts, journal, reporting, MCP and dashboard.
+- `tests/` contains the core offline tests and synthetic fixtures.
+- `research/` contains the workflow benchmark, independent bootstrap experiment and the development and holdout protocol code.
+
+The published materials support research and reproducibility. Market datasets, local journals and credentials stay outside the repository. The controller gates all numerical execution to the approved in-sample protocol. The development and holdout research code has no order execution path.

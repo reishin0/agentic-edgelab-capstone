@@ -1,0 +1,25 @@
+{
+  "origin": "synthetic",
+  "ingested_at": "2020-06-28T12:00:00+00:00",
+  "symbols": ["DEMOA", "DEMOB"],
+  "articles": [
+    {
+      "id": 2,
+      "headline": "Demo A and Demo B diverge after a simulated sector update",
+      "source": "EdgeLab synthetic fixture",
+      "url": "",
+      "created_at": "2020-06-28T11:30:00+00:00",
+      "updated_at": "2020-06-28T11:30:00+00:00",
+      "symbols": ["DEMOA", "DEMOB"]
+    },
+    {
+      "id": 1,
+      "headline": "Demo B schedules a fictional earnings announcement",
+      "source": "EdgeLab synthetic fixture",
+      "url": "",
+      "created_at": "2020-06-27T10:00:00+00:00",
+      "updated_at": "2020-06-27T10:00:00+00:00",
+      "symbols": ["DEMOB"]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-edgelab"
+version = "0.2.0"
+description = "Governed synthetic research capstone"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+research = ["langgraph>=1,<2", "langchain-core>=1,<2", "statsmodels>=0.14.5,<0.15"]
+mcp = ["mcp>=1.30,<2"]
+crew = ["crewai==1.15.41"]
+
+[tool.setuptools.packages.find]
+include = ["edgelab*"]
+
+[tool.setuptools.package-data]
+edgelab = ["web/*.html", "web/*.css", "web/*.js", "fixtures/*.json"]

@@ -1,0 +1,81 @@
+{
+  "classification": "synthetic-example",
+  "case": "shared-trend",
+  "seed": 721,
+  "window": {
+    "start": "2020-01-01",
+    "end": "2020-06-28",
+    "as_of": "2020-06-28",
+    "holdout_start": "2020-06-29"
+  },
+  "lag_policy": "AIC",
+  "approved_steps": [
+    "diagnostics",
+    "engle_granger",
+    "stability"
+  ],
+  "verdict": "continue",
+  "reason": "CUSUM did not detect a break. ECM/OU are descriptive; stability and mean reversion are not established. Holdout untested.",
+  "milestones": [
+    {
+      "decision": "proceed",
+      "rule_id": "ROOT_BOTH_I1",
+      "result_id": "result:diagnostics",
+      "details": {
+        "alpha": 0.05,
+        "series": {
+          "a": {
+            "derived_order": "I(1)",
+            "difference": {
+              "adf_p": 1.1690889490143513e-06,
+              "kpss_p": 0.1
+            },
+            "level": {
+              "adf_p": 0.8337275473344936,
+              "kpss_p": 0.01
+            },
+            "reported_order": "I(1)"
+          },
+          "b": {
+            "derived_order": "I(1)",
+            "difference": {
+              "adf_p": 3.0548449863613046e-15,
+              "kpss_p": 0.1
+            },
+            "level": {
+              "adf_p": 0.8257568795255648,
+              "kpss_p": 0.01
+            },
+            "reported_order": "I(1)"
+          }
+        }
+      },
+      "evidence_sha256": "b15304f6f7e2918def53e90d2dbb870352bf2935770101a8492e03dba7835e31"
+    },
+    {
+      "decision": "proceed",
+      "rule_id": "EG_BOTH_REJECT",
+      "result_id": "result:engle_granger",
+      "details": {
+        "a_on_b": 9.229444301827487e-12,
+        "alpha": 0.05,
+        "b_on_a": 6.795073018428981e-12
+      },
+      "evidence_sha256": "bae466ae4d5ca461f29d8668ae9c75b5ee44418faa29b4a8c66c552847d94022"
+    },
+    {
+      "decision": "continue",
+      "rule_id": "CUSUM_NOT_REJECTED",
+      "result_id": "result:stability",
+      "details": {
+        "alpha": 0.05,
+        "ar1_phi": 0.450547178260143,
+        "cusum_p": 0.35019978972814153,
+        "ecm_loading": -0.43414758425414257,
+        "ecm_loading_p": 1.2604460100972488e-10,
+        "ou_half_life_observations": 0.8693762893370488
+      },
+      "evidence_sha256": "2c8a93185c65d575eb1fa12c902e1284be99efaeba8730de2734e083fa029920"
+    }
+  ]
+}

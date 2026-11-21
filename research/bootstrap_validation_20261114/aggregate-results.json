@@ -1,0 +1,1552 @@
+{
+  "runtime": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "win32",
+    "statsmodels": "0.14.6",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1"
+  },
+  "n_per_scenario": 1000,
+  "bootstrap_draws": 199,
+  "hashes": {
+    "protocol": "f5318299138b5fe3567ed98e5e6886490a225302965b8bdaee84ca1b4506722f",
+    "runner": "73d89cd0d4fb3a167c091969a3a64c3771f8ff43f35f26048da02b9f2c4cc8d2",
+    "bootstrap_reference": "36a429eaa0ecbe5db7a12a893138322fd9b03f62cdd55b0ff152b9d941965b43",
+    "generator_reference": "2c176b96665e881173a45499817d79f8440ced96c338e23b0bf20d550de39404",
+    "stat_tools": "f76340c5c3d18bb6c70f6bf9535ad99c314842ba07f983c2ce123bacaed69369",
+    "contracts": "24096259beda9c153562eb9e0bca3d435187c2c0f33c90594d825bf675493fe1"
+  },
+  "ledger_sha256": "7b1934993601f22bd1bea2b2f58ea62bae44eacba53ef566c358c783110b6b65",
+  "market_holdout": "locked; only synthetic formation rows used",
+  "passed": false,
+  "scenarios": {
+    "independent_walks": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 486,
+            "ROOT_INCONCLUSIVE": 439,
+            "EG_DISAGREEMENT": 29,
+            "ROOT_MIXED": 35,
+            "CUSUM_REJECTS": 11
+          },
+          "stability_reached": 11,
+          "stability_counts": {
+            "CUSUM_REJECTS": 11
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 682,
+            "ROOT_INCONCLUSIVE": 248,
+            "CUSUM_REJECTS": 24,
+            "EG_DISAGREEMENT": 22,
+            "ROOT_MIXED": 24
+          },
+          "stability_reached": 24,
+          "stability_counts": {
+            "CUSUM_REJECTS": 24
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 17,
+          "advanced_rate": 0.017,
+          "wilson_95": [
+            0.01064068985681633,
+            0.027055958840229932
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 682,
+            "ROOT_INCONCLUSIVE": 248,
+            "bootstrap_clear": 17,
+            "EG_DISAGREEMENT": 22,
+            "ROOT_MIXED": 24,
+            "bootstrap_break": 6,
+            "bootstrap_unresolved:Persistence outside bootstrap support": 1
+          },
+          "stability_reached": 24,
+          "stability_counts": {
+            "bootstrap_clear": 17,
+            "bootstrap_break": 6,
+            "bootstrap_unresolved:Persistence outside bootstrap support": 1
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.027079496864851366,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 17,
+          "losses": 0,
+          "difference": 0.017,
+          "lower_97_5": 0.004780813185553705
+        },
+        "540_cusum": {
+          "gains": 17,
+          "losses": 0,
+          "difference": 0.017,
+          "lower_97_5": 0.004780813185553705
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": false
+      },
+      "passed": false
+    },
+    "stable_strong": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 531,
+          "advanced_rate": 0.531,
+          "wilson_95": [
+            0.5000102483912816,
+            0.5617524925826141
+          ],
+          "terminal_rules": {
+            "CUSUM_NOT_REJECTED": 531,
+            "ROOT_INCONCLUSIVE": 252,
+            "CUSUM_REJECTS": 183,
+            "ROOT_BOTH_I0": 34
+          },
+          "stability_reached": 714,
+          "stability_counts": {
+            "CUSUM_NOT_REJECTED": 531,
+            "CUSUM_REJECTS": 183
+          }
+        },
+        "540_cusum": {
+          "advanced": 539,
+          "advanced_rate": 0.539,
+          "wilson_95": [
+            0.5080142294521901,
+            0.5696872833859368
+          ],
+          "terminal_rules": {
+            "CUSUM_NOT_REJECTED": 539,
+            "CUSUM_REJECTS": 264,
+            "ROOT_INCONCLUSIVE": 189,
+            "ROOT_BOTH_I0": 8
+          },
+          "stability_reached": 803,
+          "stability_counts": {
+            "CUSUM_NOT_REJECTED": 539,
+            "CUSUM_REJECTS": 264
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 755,
+          "advanced_rate": 0.755,
+          "wilson_95": [
+            0.7274007492673631,
+            0.7806476039050039
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 755,
+            "ROOT_INCONCLUSIVE": 189,
+            "ROOT_BOTH_I0": 8,
+            "bootstrap_break": 48
+          },
+          "stability_reached": 803,
+          "stability_counts": {
+            "bootstrap_clear": 755,
+            "bootstrap_break": 48
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.7813738416061395,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 359,
+          "losses": 135,
+          "difference": 0.224,
+          "lower_97_5": 0.16399476073810992
+        },
+        "540_cusum": {
+          "gains": 229,
+          "losses": 13,
+          "difference": 0.216,
+          "lower_97_5": 0.17621181033225378
+        }
+      },
+      "checks": {
+        "lower_97_5_vs_180_cusum_at_least_-0.05": true,
+        "lower_97_5_vs_540_cusum_at_least_-0.05": true
+      },
+      "passed": true
+    },
+    "stable_weak": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 18,
+          "advanced_rate": 0.018,
+          "wilson_95": [
+            0.01141574000956779,
+            0.02827325517050735
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 218,
+            "EG_NEITHER_REJECTS": 430,
+            "ROOT_INCONCLUSIVE": 271,
+            "CUSUM_NOT_REJECTED": 18,
+            "ROOT_BOTH_I0": 19,
+            "EG_DISAGREEMENT": 44
+          },
+          "stability_reached": 236,
+          "stability_counts": {
+            "CUSUM_REJECTS": 218,
+            "CUSUM_NOT_REJECTED": 18
+          }
+        },
+        "540_cusum": {
+          "advanced": 1,
+          "advanced_rate": 0.001,
+          "wilson_95": [
+            0.00017654637062607765,
+            0.005642558597957937
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 824,
+            "ROOT_INCONCLUSIVE": 161,
+            "ROOT_BOTH_I0": 12,
+            "CUSUM_NOT_REJECTED": 1,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 825,
+          "stability_counts": {
+            "CUSUM_REJECTS": 824,
+            "CUSUM_NOT_REJECTED": 1
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 784,
+          "advanced_rate": 0.784,
+          "wilson_95": [
+            0.7574334101291272,
+            0.8083929910510775
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 784,
+            "bootstrap_break": 41,
+            "ROOT_INCONCLUSIVE": 161,
+            "ROOT_BOTH_I0": 12,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 825,
+          "stability_counts": {
+            "bootstrap_clear": 784,
+            "bootstrap_break": 41
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.8091391127324741,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 768,
+          "losses": 2,
+          "difference": 0.766,
+          "lower_97_5": 0.7285138994921694
+        },
+        "540_cusum": {
+          "gains": 783,
+          "losses": 0,
+          "difference": 0.783,
+          "lower_97_5": 0.7478817373089898
+        }
+      },
+      "checks": {
+        "lower_97_5_vs_180_at_least_0.10": true
+      },
+      "passed": true
+    },
+    "slope_reversal": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "ROOT_INCONCLUSIVE": 320,
+            "EG_NEITHER_REJECTS": 531,
+            "CUSUM_REJECTS": 60,
+            "EG_DISAGREEMENT": 44,
+            "ROOT_MIXED": 41,
+            "ROOT_BOTH_I0": 4
+          },
+          "stability_reached": 60,
+          "stability_counts": {
+            "CUSUM_REJECTS": 60
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 60,
+            "EG_NEITHER_REJECTS": 657,
+            "ROOT_INCONCLUSIVE": 213,
+            "EG_DISAGREEMENT": 39,
+            "ROOT_MIXED": 29,
+            "ROOT_BOTH_I0": 2
+          },
+          "stability_reached": 60,
+          "stability_counts": {
+            "CUSUM_REJECTS": 60
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 60,
+            "EG_NEITHER_REJECTS": 657,
+            "ROOT_INCONCLUSIVE": 213,
+            "EG_DISAGREEMENT": 39,
+            "ROOT_MIXED": 29,
+            "ROOT_BOTH_I0": 2
+          },
+          "stability_reached": 60,
+          "stability_counts": {
+            "bootstrap_break": 60
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.003682083896865672,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 0,
+          "losses": 0,
+          "difference": 0.0,
+          "lower_97_5": -0.0043724395646712695
+        },
+        "540_cusum": {
+          "gains": 0,
+          "losses": 0,
+          "difference": 0.0,
+          "lower_97_5": -0.0043724395646712695
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "intercept_mid": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 57,
+          "advanced_rate": 0.057,
+          "wilson_95": [
+            0.04425344035871593,
+            0.07313706765948591
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 610,
+            "ROOT_INCONCLUSIVE": 279,
+            "CUSUM_NOT_REJECTED": 57,
+            "ROOT_BOTH_I0": 31,
+            "EG_NEITHER_REJECTS": 13,
+            "ROOT_MIXED": 7,
+            "EG_DISAGREEMENT": 3
+          },
+          "stability_reached": 667,
+          "stability_counts": {
+            "CUSUM_REJECTS": 610,
+            "CUSUM_NOT_REJECTED": 57
+          }
+        },
+        "540_cusum": {
+          "advanced": 4,
+          "advanced_rate": 0.004,
+          "wilson_95": [
+            0.00155658814040843,
+            0.010239556277262255
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 801,
+            "ROOT_INCONCLUSIVE": 173,
+            "ROOT_BOTH_I0": 16,
+            "ROOT_MIXED": 2,
+            "CUSUM_NOT_REJECTED": 4,
+            "EG_NEITHER_REJECTS": 4
+          },
+          "stability_reached": 805,
+          "stability_counts": {
+            "CUSUM_REJECTS": 801,
+            "CUSUM_NOT_REJECTED": 4
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 805,
+            "ROOT_INCONCLUSIVE": 173,
+            "ROOT_BOTH_I0": 16,
+            "ROOT_MIXED": 2,
+            "EG_NEITHER_REJECTS": 4
+          },
+          "stability_reached": 805,
+          "stability_counts": {
+            "bootstrap_break": 805
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.003682083896865672,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 0,
+          "losses": 57,
+          "difference": -0.057,
+          "lower_97_5": -0.07564691237521545
+        },
+        "540_cusum": {
+          "gains": 0,
+          "losses": 4,
+          "difference": -0.004,
+          "lower_97_5": -0.011238134876521958
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "independent_persistent_ar": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "ROOT_INCONCLUSIVE": 593,
+            "EG_NEITHER_REJECTS": 305,
+            "ROOT_MIXED": 79,
+            "CUSUM_REJECTS": 10,
+            "EG_DISAGREEMENT": 10,
+            "ROOT_BOTH_I0": 3
+          },
+          "stability_reached": 10,
+          "stability_counts": {
+            "CUSUM_REJECTS": 10
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "ROOT_INCONCLUSIVE": 588,
+            "EG_NEITHER_REJECTS": 191,
+            "ROOT_MIXED": 161,
+            "ROOT_BOTH_I0": 39,
+            "EG_DISAGREEMENT": 12,
+            "CUSUM_REJECTS": 9
+          },
+          "stability_reached": 9,
+          "stability_counts": {
+            "CUSUM_REJECTS": 9
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 7,
+          "advanced_rate": 0.007,
+          "wilson_95": [
+            0.0033948684009907654,
+            0.01437831546576659
+          ],
+          "terminal_rules": {
+            "ROOT_INCONCLUSIVE": 588,
+            "EG_NEITHER_REJECTS": 191,
+            "ROOT_MIXED": 161,
+            "ROOT_BOTH_I0": 39,
+            "EG_DISAGREEMENT": 12,
+            "bootstrap_clear": 7,
+            "bootstrap_break": 2
+          },
+          "stability_reached": 9,
+          "stability_counts": {
+            "bootstrap_clear": 7,
+            "bootstrap_break": 2
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.014369194978918632,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 7,
+          "losses": 0,
+          "difference": 0.007,
+          "lower_97_5": -0.001931476588195132
+        },
+        "540_cusum": {
+          "gains": 7,
+          "losses": 0,
+          "difference": 0.007,
+          "lower_97_5": -0.001931476588195132
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "intercept_off_grid": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 61,
+          "advanced_rate": 0.061,
+          "wilson_95": [
+            0.047779775126033694,
+            0.07758011882428369
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 614,
+            "ROOT_INCONCLUSIVE": 274,
+            "ROOT_BOTH_I0": 28,
+            "ROOT_MIXED": 5,
+            "CUSUM_NOT_REJECTED": 61,
+            "EG_NEITHER_REJECTS": 14,
+            "EG_DISAGREEMENT": 4
+          },
+          "stability_reached": 675,
+          "stability_counts": {
+            "CUSUM_REJECTS": 614,
+            "CUSUM_NOT_REJECTED": 61
+          }
+        },
+        "540_cusum": {
+          "advanced": 3,
+          "advanced_rate": 0.003,
+          "wilson_95": [
+            0.0010207838811386195,
+            0.008783014053503176
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 819,
+            "ROOT_INCONCLUSIVE": 156,
+            "CUSUM_NOT_REJECTED": 3,
+            "ROOT_MIXED": 2,
+            "ROOT_BOTH_I0": 20
+          },
+          "stability_reached": 822,
+          "stability_counts": {
+            "CUSUM_REJECTS": 819,
+            "CUSUM_NOT_REJECTED": 3
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 822,
+            "ROOT_INCONCLUSIVE": 156,
+            "ROOT_MIXED": 2,
+            "ROOT_BOTH_I0": 20
+          },
+          "stability_reached": 822,
+          "stability_counts": {
+            "bootstrap_break": 822
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.003682083896865672,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 0,
+          "losses": 61,
+          "difference": -0.061,
+          "lower_97_5": -0.08015731835966096
+        },
+        "540_cusum": {
+          "gains": 0,
+          "losses": 3,
+          "difference": -0.003,
+          "lower_97_5": -0.009706463271407504
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "stable_weak_arma": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 12,
+          "advanced_rate": 0.012,
+          "wilson_95": [
+            0.006877647806403521,
+            0.02085726847549828
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 237,
+            "EG_DISAGREEMENT": 76,
+            "ROOT_INCONCLUSIVE": 305,
+            "EG_NEITHER_REJECTS": 353,
+            "ROOT_BOTH_I0": 10,
+            "ROOT_MIXED": 7,
+            "CUSUM_NOT_REJECTED": 12
+          },
+          "stability_reached": 249,
+          "stability_counts": {
+            "CUSUM_REJECTS": 237,
+            "CUSUM_NOT_REJECTED": 12
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 812,
+            "ROOT_INCONCLUSIVE": 161,
+            "ROOT_MIXED": 3,
+            "ROOT_BOTH_I0": 15,
+            "EG_NEITHER_REJECTS": 2,
+            "EG_DISAGREEMENT": 7
+          },
+          "stability_reached": 812,
+          "stability_counts": {
+            "CUSUM_REJECTS": 812
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 811,
+          "advanced_rate": 0.811,
+          "wilson_95": [
+            0.7855616182967687,
+            0.8340581379252162
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 811,
+            "ROOT_INCONCLUSIVE": 161,
+            "ROOT_MIXED": 3,
+            "ROOT_BOTH_I0": 15,
+            "bootstrap_break": 1,
+            "EG_NEITHER_REJECTS": 2,
+            "EG_DISAGREEMENT": 7
+          },
+          "stability_reached": 812,
+          "stability_counts": {
+            "bootstrap_clear": 811,
+            "bootstrap_break": 1
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.8348215135328766,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 802,
+          "losses": 3,
+          "difference": 0.799,
+          "lower_97_5": 0.7624438245993701
+        },
+        "540_cusum": {
+          "gains": 811,
+          "losses": 0,
+          "difference": 0.811,
+          "lower_97_5": 0.77723674589651
+        }
+      },
+      "checks": {
+        "lower_97_5_vs_180_at_least_0.10": true
+      },
+      "passed": true
+    },
+    "stable_student_t": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 8,
+          "advanced_rate": 0.008,
+          "wilson_95": [
+            0.004059195818806101,
+            0.015706334530980144
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 390,
+            "CUSUM_REJECTS": 266,
+            "EG_DISAGREEMENT": 37,
+            "ROOT_INCONCLUSIVE": 280,
+            "CUSUM_NOT_REJECTED": 8,
+            "ROOT_MIXED": 3,
+            "ROOT_BOTH_I0": 16
+          },
+          "stability_reached": 274,
+          "stability_counts": {
+            "CUSUM_REJECTS": 266,
+            "CUSUM_NOT_REJECTED": 8
+          }
+        },
+        "540_cusum": {
+          "advanced": 2,
+          "advanced_rate": 0.002,
+          "wilson_95": [
+            0.0005486435881207267,
+            0.007262807863492178
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 811,
+            "ROOT_INCONCLUSIVE": 171,
+            "CUSUM_NOT_REJECTED": 2,
+            "ROOT_BOTH_I0": 14,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 813,
+          "stability_counts": {
+            "CUSUM_REJECTS": 811,
+            "CUSUM_NOT_REJECTED": 2
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 758,
+          "advanced_rate": 0.758,
+          "wilson_95": [
+            0.7304996799200717,
+            0.7835257127013818
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 758,
+            "bootstrap_break": 55,
+            "ROOT_INCONCLUSIVE": 171,
+            "ROOT_BOTH_I0": 14,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 813,
+          "stability_counts": {
+            "bootstrap_clear": 758,
+            "bootstrap_break": 55
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.7842540621318352,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 753,
+          "losses": 3,
+          "difference": 0.75,
+          "lower_97_5": 0.7113147656730172
+        },
+        "540_cusum": {
+          "gains": 756,
+          "losses": 0,
+          "difference": 0.756,
+          "lower_97_5": 0.7197627570044106
+        }
+      },
+      "checks": {
+        "lower_97_5_vs_180_at_least_0.10": true
+      },
+      "passed": true
+    },
+    "stable_volatility_regimes": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 15,
+          "advanced_rate": 0.015,
+          "wilson_95": [
+            0.00911097880408167,
+            0.024600976926906805
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 268,
+            "EG_NEITHER_REJECTS": 427,
+            "ROOT_INCONCLUSIVE": 249,
+            "CUSUM_NOT_REJECTED": 15,
+            "EG_DISAGREEMENT": 18,
+            "ROOT_BOTH_I0": 22,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 283,
+          "stability_counts": {
+            "CUSUM_REJECTS": 268,
+            "CUSUM_NOT_REJECTED": 15
+          }
+        },
+        "540_cusum": {
+          "advanced": 2,
+          "advanced_rate": 0.002,
+          "wilson_95": [
+            0.0005486435881207267,
+            0.007262807863492178
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 814,
+            "ROOT_INCONCLUSIVE": 154,
+            "ROOT_BOTH_I0": 18,
+            "EG_NEITHER_REJECTS": 9,
+            "EG_DISAGREEMENT": 2,
+            "CUSUM_NOT_REJECTED": 2,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 816,
+          "stability_counts": {
+            "CUSUM_REJECTS": 814,
+            "CUSUM_NOT_REJECTED": 2
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 777,
+          "advanced_rate": 0.777,
+          "wilson_95": [
+            0.7501681060278989,
+            0.8017118697711036
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 777,
+            "ROOT_INCONCLUSIVE": 154,
+            "ROOT_BOTH_I0": 18,
+            "bootstrap_break": 39,
+            "EG_NEITHER_REJECTS": 9,
+            "EG_DISAGREEMENT": 2,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 816,
+          "stability_counts": {
+            "bootstrap_clear": 777,
+            "bootstrap_break": 39
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.8024533062768828,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 767,
+          "losses": 5,
+          "difference": 0.762,
+          "lower_97_5": 0.7228546755460837
+        },
+        "540_cusum": {
+          "gains": 775,
+          "losses": 0,
+          "difference": 0.775,
+          "lower_97_5": 0.7395321057157372
+        }
+      },
+      "checks": {
+        "lower_97_5_vs_180_at_least_0.10": true
+      },
+      "passed": true
+    },
+    "stable_near_unit": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 4,
+          "advanced_rate": 0.004,
+          "wilson_95": [
+            0.00155658814040843,
+            0.010239556277262255
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 522,
+            "ROOT_INCONCLUSIVE": 318,
+            "ROOT_BOTH_I0": 18,
+            "EG_DISAGREEMENT": 30,
+            "CUSUM_REJECTS": 100,
+            "CUSUM_NOT_REJECTED": 4,
+            "ROOT_MIXED": 8
+          },
+          "stability_reached": 104,
+          "stability_counts": {
+            "CUSUM_REJECTS": 100,
+            "CUSUM_NOT_REJECTED": 4
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 596,
+            "EG_DISAGREEMENT": 39,
+            "ROOT_INCONCLUSIVE": 160,
+            "EG_NEITHER_REJECTS": 198,
+            "ROOT_MIXED": 1,
+            "ROOT_BOTH_I0": 6
+          },
+          "stability_reached": 596,
+          "stability_counts": {
+            "CUSUM_REJECTS": 596
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 546,
+          "advanced_rate": 0.546,
+          "wilson_95": [
+            0.5150242420441904,
+            0.5766236961751385
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 546,
+            "bootstrap_break": 50,
+            "EG_DISAGREEMENT": 39,
+            "ROOT_INCONCLUSIVE": 160,
+            "EG_NEITHER_REJECTS": 198,
+            "ROOT_MIXED": 1,
+            "ROOT_BOTH_I0": 6
+          },
+          "stability_reached": 596,
+          "stability_counts": {
+            "bootstrap_clear": 546,
+            "bootstrap_break": 50
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.577183950279601,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 543,
+          "losses": 1,
+          "difference": 0.542,
+          "lower_97_5": 0.5007214858591232
+        },
+        "540_cusum": {
+          "gains": 546,
+          "losses": 0,
+          "difference": 0.546,
+          "lower_97_5": 0.5057205330634281
+        }
+      },
+      "checks": {
+        "lower_97_5_vs_180_at_least_0.10": true
+      },
+      "passed": true
+    },
+    "correlated_walks": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 566,
+            "ROOT_INCONCLUSIVE": 358,
+            "ROOT_MIXED": 30,
+            "EG_DISAGREEMENT": 20,
+            "CUSUM_REJECTS": 23,
+            "ROOT_BOTH_I0": 3
+          },
+          "stability_reached": 23,
+          "stability_counts": {
+            "CUSUM_REJECTS": 23
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 692,
+            "ROOT_INCONCLUSIVE": 222,
+            "EG_DISAGREEMENT": 24,
+            "CUSUM_REJECTS": 37,
+            "ROOT_MIXED": 24,
+            "ROOT_BOTH_I0": 1
+          },
+          "stability_reached": 37,
+          "stability_counts": {
+            "CUSUM_REJECTS": 37
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 28,
+          "advanced_rate": 0.028,
+          "wilson_95": [
+            0.01944227681277093,
+            0.040170183197593114
+          ],
+          "terminal_rules": {
+            "EG_NEITHER_REJECTS": 692,
+            "ROOT_INCONCLUSIVE": 222,
+            "EG_DISAGREEMENT": 24,
+            "bootstrap_break": 9,
+            "ROOT_MIXED": 24,
+            "bootstrap_clear": 28,
+            "ROOT_BOTH_I0": 1
+          },
+          "stability_reached": 37,
+          "stability_counts": {
+            "bootstrap_break": 9,
+            "bootstrap_clear": 28
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.040214887373843315,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 28,
+          "losses": 0,
+          "difference": 0.028,
+          "lower_97_5": 0.013211065753065337
+        },
+        "540_cusum": {
+          "gains": 28,
+          "losses": 0,
+          "difference": 0.028,
+          "lower_97_5": 0.013211065753065337
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": false
+      },
+      "passed": false
+    },
+    "intercept_small_early": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 197,
+          "advanced_rate": 0.197,
+          "wilson_95": [
+            0.17352816173578522,
+            0.22279085390646125
+          ],
+          "terminal_rules": {
+            "CUSUM_NOT_REJECTED": 197,
+            "CUSUM_REJECTS": 519,
+            "ROOT_INCONCLUSIVE": 256,
+            "ROOT_BOTH_I0": 27,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 716,
+          "stability_counts": {
+            "CUSUM_NOT_REJECTED": 197,
+            "CUSUM_REJECTS": 519
+          }
+        },
+        "540_cusum": {
+          "advanced": 34,
+          "advanced_rate": 0.034,
+          "wilson_95": [
+            0.024431348663226313,
+            0.04713519024531107
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 768,
+            "ROOT_INCONCLUSIVE": 186,
+            "CUSUM_NOT_REJECTED": 34,
+            "ROOT_BOTH_I0": 11,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 802,
+          "stability_counts": {
+            "CUSUM_REJECTS": 768,
+            "CUSUM_NOT_REJECTED": 34
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 59,
+          "advanced_rate": 0.059,
+          "wilson_95": [
+            0.04601429821280047,
+            0.07536090277145915
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 59,
+            "bootstrap_break": 743,
+            "ROOT_INCONCLUSIVE": 186,
+            "ROOT_BOTH_I0": 11,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 802,
+          "stability_counts": {
+            "bootstrap_clear": 59,
+            "bootstrap_break": 743
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.07544907308424079,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 34,
+          "losses": 172,
+          "difference": -0.138,
+          "lower_97_5": -0.1780481354131784
+        },
+        "540_cusum": {
+          "gains": 43,
+          "losses": 18,
+          "difference": 0.025,
+          "lower_97_5": -5.085125386294562e-05
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": false
+      },
+      "passed": false
+    },
+    "intercept_large_late": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 554,
+          "advanced_rate": 0.554,
+          "wilson_95": [
+            0.5230431762490696,
+            0.5845435338344905
+          ],
+          "terminal_rules": {
+            "CUSUM_NOT_REJECTED": 554,
+            "ROOT_BOTH_I0": 30,
+            "ROOT_INCONCLUSIVE": 234,
+            "CUSUM_REJECTS": 182
+          },
+          "stability_reached": 736,
+          "stability_counts": {
+            "CUSUM_NOT_REJECTED": 554,
+            "CUSUM_REJECTS": 182
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 507,
+            "EG_NEITHER_REJECTS": 289,
+            "ROOT_INCONCLUSIVE": 154,
+            "ROOT_MIXED": 3,
+            "EG_DISAGREEMENT": 32,
+            "ROOT_BOTH_I0": 15
+          },
+          "stability_reached": 507,
+          "stability_counts": {
+            "CUSUM_REJECTS": 507
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 507,
+            "EG_NEITHER_REJECTS": 289,
+            "ROOT_INCONCLUSIVE": 154,
+            "ROOT_MIXED": 3,
+            "EG_DISAGREEMENT": 32,
+            "ROOT_BOTH_I0": 15
+          },
+          "stability_reached": 507,
+          "stability_counts": {
+            "bootstrap_break": 507
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.003682083896865672,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 0,
+          "losses": 554,
+          "difference": -0.554,
+          "lower_97_5": -0.589475582339551
+        },
+        "540_cusum": {
+          "gains": 0,
+          "losses": 0,
+          "difference": 0.0,
+          "lower_97_5": -0.0043724395646712695
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "intercept_large_outside_grid": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 501,
+          "advanced_rate": 0.501,
+          "wilson_95": [
+            0.47006583523375295,
+            0.5319265112492759
+          ],
+          "terminal_rules": {
+            "ROOT_INCONCLUSIVE": 289,
+            "CUSUM_REJECTS": 192,
+            "CUSUM_NOT_REJECTED": 501,
+            "ROOT_BOTH_I0": 18
+          },
+          "stability_reached": 693,
+          "stability_counts": {
+            "CUSUM_REJECTS": 192,
+            "CUSUM_NOT_REJECTED": 501
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 614,
+            "EG_NEITHER_REJECTS": 163,
+            "ROOT_INCONCLUSIVE": 184,
+            "EG_DISAGREEMENT": 23,
+            "ROOT_BOTH_I0": 14,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 614,
+          "stability_counts": {
+            "CUSUM_REJECTS": 614
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 614,
+            "EG_NEITHER_REJECTS": 163,
+            "ROOT_INCONCLUSIVE": 184,
+            "EG_DISAGREEMENT": 23,
+            "ROOT_BOTH_I0": 14,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 614,
+          "stability_counts": {
+            "bootstrap_break": 614
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.003682083896865672,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 0,
+          "losses": 501,
+          "difference": -0.501,
+          "lower_97_5": -0.5368807230830345
+        },
+        "540_cusum": {
+          "gains": 0,
+          "losses": 0,
+          "difference": 0.0,
+          "lower_97_5": -0.0043724395646712695
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "intercept_weak_late": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 15,
+          "advanced_rate": 0.015,
+          "wilson_95": [
+            0.00911097880408167,
+            0.024600976926906805
+          ],
+          "terminal_rules": {
+            "EG_DISAGREEMENT": 46,
+            "EG_NEITHER_REJECTS": 382,
+            "CUSUM_REJECTS": 281,
+            "ROOT_INCONCLUSIVE": 253,
+            "ROOT_BOTH_I0": 21,
+            "CUSUM_NOT_REJECTED": 15,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 296,
+          "stability_counts": {
+            "CUSUM_REJECTS": 281,
+            "CUSUM_NOT_REJECTED": 15
+          }
+        },
+        "540_cusum": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 775,
+            "ROOT_INCONCLUSIVE": 177,
+            "ROOT_MIXED": 5,
+            "EG_NEITHER_REJECTS": 29,
+            "EG_DISAGREEMENT": 9,
+            "ROOT_BOTH_I0": 5
+          },
+          "stability_reached": 775,
+          "stability_counts": {
+            "CUSUM_REJECTS": 775
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 467,
+          "advanced_rate": 0.467,
+          "wilson_95": [
+            0.4362630649735458,
+            0.4979895010865009
+          ],
+          "terminal_rules": {
+            "bootstrap_clear": 467,
+            "ROOT_INCONCLUSIVE": 177,
+            "bootstrap_break": 308,
+            "ROOT_MIXED": 5,
+            "EG_NEITHER_REJECTS": 29,
+            "EG_DISAGREEMENT": 9,
+            "ROOT_BOTH_I0": 5
+          },
+          "stability_reached": 775,
+          "stability_counts": {
+            "bootstrap_clear": 467,
+            "bootstrap_break": 308
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.4984808294673215,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 463,
+          "losses": 11,
+          "difference": 0.452,
+          "lower_97_5": 0.4063950808907558
+        },
+        "540_cusum": {
+          "gains": 467,
+          "losses": 0,
+          "difference": 0.467,
+          "lower_97_5": 0.4269436768037975
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": false
+      },
+      "passed": false
+    },
+    "slope_moderate_early": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 38,
+          "advanced_rate": 0.038,
+          "wilson_95": [
+            0.027809004509302626,
+            0.05172692033135032
+          ],
+          "terminal_rules": {
+            "CUSUM_NOT_REJECTED": 38,
+            "CUSUM_REJECTS": 388,
+            "EG_NEITHER_REJECTS": 278,
+            "ROOT_BOTH_I0": 16,
+            "ROOT_INCONCLUSIVE": 262,
+            "EG_DISAGREEMENT": 16,
+            "ROOT_MIXED": 2
+          },
+          "stability_reached": 426,
+          "stability_counts": {
+            "CUSUM_NOT_REJECTED": 38,
+            "CUSUM_REJECTS": 388
+          }
+        },
+        "540_cusum": {
+          "advanced": 26,
+          "advanced_rate": 0.026,
+          "wilson_95": [
+            0.017803938201616326,
+            0.037823828842689936
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 721,
+            "ROOT_INCONCLUSIVE": 133,
+            "EG_NEITHER_REJECTS": 87,
+            "EG_DISAGREEMENT": 16,
+            "CUSUM_NOT_REJECTED": 26,
+            "ROOT_BOTH_I0": 16,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 747,
+          "stability_counts": {
+            "CUSUM_REJECTS": 721,
+            "CUSUM_NOT_REJECTED": 26
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 0,
+          "advanced_rate": 0.0,
+          "wilson_95": [
+            2.168404344971009e-19,
+            0.003826758485555125
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 747,
+            "ROOT_INCONCLUSIVE": 133,
+            "EG_NEITHER_REJECTS": 87,
+            "EG_DISAGREEMENT": 16,
+            "ROOT_BOTH_I0": 16,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 747,
+          "stability_counts": {
+            "bootstrap_break": 747
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.003682083896865672,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 0,
+          "losses": 38,
+          "difference": -0.038,
+          "lower_97_5": -0.05387158285604231
+        },
+        "540_cusum": {
+          "gains": 0,
+          "losses": 26,
+          "difference": -0.026,
+          "lower_97_5": -0.039680975050937234
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": true
+      },
+      "passed": true
+    },
+    "slope_moderate_outside_grid": {
+      "arms": {
+        "180_cusum": {
+          "advanced": 20,
+          "advanced_rate": 0.02,
+          "wilson_95": [
+            0.012983682916415138,
+            0.03069000522971779
+          ],
+          "terminal_rules": {
+            "ROOT_INCONCLUSIVE": 344,
+            "CUSUM_NOT_REJECTED": 20,
+            "EG_DISAGREEMENT": 30,
+            "CUSUM_REJECTS": 479,
+            "EG_NEITHER_REJECTS": 96,
+            "ROOT_BOTH_I0": 24,
+            "ROOT_MIXED": 7
+          },
+          "stability_reached": 499,
+          "stability_counts": {
+            "CUSUM_NOT_REJECTED": 20,
+            "CUSUM_REJECTS": 479
+          }
+        },
+        "540_cusum": {
+          "advanced": 36,
+          "advanced_rate": 0.036,
+          "wilson_95": [
+            0.026115571407387315,
+            0.04943566046720784
+          ],
+          "terminal_rules": {
+            "CUSUM_REJECTS": 722,
+            "ROOT_INCONCLUSIVE": 196,
+            "EG_DISAGREEMENT": 5,
+            "ROOT_BOTH_I0": 16,
+            "EG_NEITHER_REJECTS": 24,
+            "CUSUM_NOT_REJECTED": 36,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 758,
+          "stability_counts": {
+            "CUSUM_REJECTS": 722,
+            "CUSUM_NOT_REJECTED": 36
+          }
+        },
+        "540_bootstrap": {
+          "advanced": 69,
+          "advanced_rate": 0.069,
+          "wilson_95": [
+            0.054883945585911253,
+            0.08641472022863728
+          ],
+          "terminal_rules": {
+            "bootstrap_break": 689,
+            "ROOT_INCONCLUSIVE": 196,
+            "EG_DISAGREEMENT": 5,
+            "ROOT_BOTH_I0": 16,
+            "bootstrap_clear": 69,
+            "EG_NEITHER_REJECTS": 24,
+            "ROOT_MIXED": 1
+          },
+          "stability_reached": 758,
+          "stability_counts": {
+            "bootstrap_break": 689,
+            "bootstrap_clear": 69
+          }
+        }
+      },
+      "bootstrap_upper_97_5": 0.08651510934571156,
+      "paired_comparisons": {
+        "180_cusum": {
+          "gains": 66,
+          "losses": 17,
+          "difference": 0.049,
+          "lower_97_5": 0.020898146483778496
+        },
+        "540_cusum": {
+          "gains": 55,
+          "losses": 22,
+          "difference": 0.033,
+          "lower_97_5": 0.005190569004495507
+        }
+      },
+      "checks": {
+        "upper_97_5_at_most_0.02": false
+      },
+      "passed": false
+    }
+  }
+}

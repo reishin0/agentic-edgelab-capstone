@@ -1,0 +1,19 @@
+{
+  "action_certificate_sha256": "4b529013d4fbd77bbf20bf6043f65375695cae02cacee56c9fa7a24fceb78f1d",
+  "certified_event_sessions": 396,
+  "family_sha256": "2713081596a4142927b53ca834434a73f1069bea970726c0685a708d416f235f",
+  "formation_rules": {
+    "INCOMPLETE_OR_INVALID_HISTORY": 4784
+  },
+  "frozen_pairs": 4784,
+  "holdout": "locked and untested",
+  "nasdaq_sessions": 461,
+  "runner_sha256": "4954863d7485fa50fe89741449ce0487507228aac14c9a95d51a0a807136730b",
+  "schema": 1,
+  "screen_manifest_sha256": "8f80cdafce8fc036d3b7ed371ea209d2fe18918792f11ffa5d6a155c484d54a8",
+  "screen_result_sha256": "23379a00329a6b2bdd9c1c09b876043bff065350a6d7a3a9dfec897d003008a9",
+  "shortlist": [],
+  "source_receipt_sha256": "faa9d11da28b6625dbedf3be212ed3513c287f88ac4548533eb7769aa79c59c8",
+  "through": "2025-10-31",
+  "verdict": "unresolved"
+}
