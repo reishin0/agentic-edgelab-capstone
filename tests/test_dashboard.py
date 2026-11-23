@@ -56,6 +56,16 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn(b"test-secret", request("GET", "/api/runs")[1])
         self.assertFalse(self.path.exists())
 
+    def test_configuration_badges_use_the_diagnostic_settings_file(self):
+        self.env.write_text("PINECONE_INDEX_HOST=old.svc.test.pinecone.io\nPINECONE_API_KEY=fixture\n"
+                            "EDGELAB_NEWS_KEY=fixture\nEDGELAB_NEWS_SECRET=fixture\n", encoding="utf-8")
+        providers = self.root / "providers.env"
+        self.assertEqual(configuration(self.env, provider_env=providers), {
+            "lm_studio": "Not configured", "pinecone": "Not configured", "news": "Configured",
+        })
+        providers.write_text("PINECONE_INDEX_HOST=new.svc.test.pinecone.io\nPINECONE_API_KEY=fixture\n", encoding="utf-8")
+        self.assertEqual(configuration(self.env, provider_env=providers)["pinecone"], "Configured")
+
     def test_settings_diagnostics_require_origin_and_never_open_research_journal(self):
         providers = self.root / "providers.env"
         providers.write_text("OPENROUTER_API_KEY=fixture-private-token\n", encoding="utf-8")

@@ -28,8 +28,9 @@ class LocalPlannerStartupTests(unittest.TestCase):
         self.graph = self.enterContext(patch("edgelab.capstone.build_graph"))
         self.graph.return_value.invoke.return_value = {"output": {"status": "fixture"}}
 
-    def call_plan(self, *arguments):
-        with (patch.object(sys, "argv", ["capstone", "--journal", str(self.journal), "plan", *arguments]),
+    def call_plan(self, *arguments, settings_file=None):
+        settings = ["--settings-file", str(settings_file)] if settings_file is not None else []
+        with (patch.object(sys, "argv", ["capstone", "--journal", str(self.journal), *settings, "plan", *arguments]),
               redirect_stdout(StringIO()), redirect_stderr(StringIO())):
             main()
 
@@ -56,3 +57,19 @@ class LocalPlannerStartupTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 2)
         self.graph.assert_not_called()
         self.assertFalse(self.journal.exists())
+
+    def test_automatic_planner_cannot_replace_pinecone_settings(self):
+        self.journal.with_name(".env").write_text(
+            "PINECONE_INDEX_HOST=fixture.svc.test.pinecone.io\nPINECONE_API_KEY=fixture\n", encoding="utf-8",
+        )
+        with (patch("edgelab.capstone.ROOT", self.journal.parent),
+              patch("edgelab.capstone.PineconeMethods") as methods):
+            self.call_plan("--retrieval", "pinecone", "--allow-provider-io")
+        methods.assert_called_once_with("fixture.svc.test.pinecone.io", "fixture")
+        self.assertEqual(self.graph.call_args.args[2].models["planner"], ORNITH_PLANNER_MODEL)
+
+    def test_missing_explicit_settings_file_stops_planning(self):
+        with self.assertRaises(SystemExit) as error:
+            self.call_plan(settings_file=self.journal.with_name("missing.env"))
+        self.assertEqual(error.exception.code, 2)
+        self.graph.assert_not_called()

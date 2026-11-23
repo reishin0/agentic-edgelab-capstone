@@ -103,29 +103,30 @@ def main() -> None:
                     explicit_provider = args.lm_studio or args.openrouter or args.retrieval == "pinecone"
                     if explicit_provider and not args.allow_provider_io:
                         parser.error("Provider access requires --allow-provider-io")
-                    local_default = False
-                    settings = {}
+                    if args.settings_file is not None and (explicit_provider or not args.no_model) and not settings_path.is_file():
+                        parser.error("--settings-file must name an existing file")
+                    settings = read_env(settings_path) if explicit_provider and settings_path.is_file() else {}
+                    default_settings = None
                     if not (args.lm_studio or args.openrouter or args.no_model):
                         default_path = args.settings_file or LOCAL_PLANNER_SETTINGS
                         if default_path.is_file():
-                            local_settings = read_env(default_path)
+                            local_settings = settings if explicit_provider and default_path == settings_path else read_env(default_path)
                             if local_settings.get("LM_STUDIO_AUTO_USE") == "1":
-                                local_default = True
-                                settings = local_settings
-                    if explicit_provider and not local_default:
-                        settings = read_env(settings_path) if settings_path.is_file() else {}
+                                default_settings = local_settings
+                    local_default = default_settings is not None
                     if explicit_provider or local_default:
                         if args.retrieval == "pinecone":
                             retrieve = PineconeMethods(
                                 settings.get("PINECONE_INDEX_HOST", ""), settings.get("PINECONE_API_KEY", ""),
                             ).retrieve
                         if args.lm_studio or local_default:
-                            model = LMStudio.from_settings(settings, planner_model=args.model_id)
+                            model_settings = default_settings if local_default else settings
+                            model = LMStudio.from_settings(model_settings, planner_model=args.model_id)
                             if args.model_id is not None or local_default or model.planner_profile:
                                 model_id = model.models.get("planner")
                                 if not model_id:
                                     parser.error("Configure an exact LM Studio Planner model ID")
-                                catalog = local_catalog(settings, allow_provider_io=True)
+                                catalog = local_catalog(model_settings, allow_provider_io=True)
                                 if model_id not in catalog["loaded_ids"]:
                                     parser.error("Load the selected LM Studio model before planning")
                             adviser_provider = "lm_studio"

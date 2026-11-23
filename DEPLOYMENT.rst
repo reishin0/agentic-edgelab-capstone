@@ -20,8 +20,9 @@ report before and after adding presentation metadata. Do not use an active
 journal for rollout: a source change invalidates older pending approvals.
 The read-only escalation command emits a digest-bound local handoff for
 unresolved, revise, or reconciliation-required runs. It grants no authority.
-Multi-user identity, authenticated ticket delivery, and matched-budget
-single-agent versus multi-agent evaluation remain separate acceptance items.
+Multi-user identity, authenticated ticket delivery, and an end-to-end
+comparison of single-agent and multi-agent workflows remain separate
+acceptance items. The completed matched-budget study evaluated advisory roles.
 
 4.1: Planning search, LangChain and MCP
 --------------------------------------
@@ -61,8 +62,8 @@ model IDs. Load the chosen model in LM Studio before selecting it in EdgeLab.
 For a local Planner default, set ``LM_STUDIO_AUTO_USE=1`` and an exact
 ``LM_STUDIO_PLANNER_MODEL`` in the project's private ``providers.env``.
 A new ``capstone plan`` checks that this instance is already loaded.
-Use ``capstone plan --no-model`` to disable model advice. The dashboard
-uses the configured model as the default in its model list.
+Use ``capstone plan --no-model`` with bundled notes for a provider-free plan.
+The dashboard offers the configured default when the local instance is loaded.
 
 The optional ``LM_STUDIO_PLANNER_PROFILE=ornith`` applies to
 ``ornith-1.5-35b-a3b-q4-k-m``. EdgeLab uses LM Studio's model template,

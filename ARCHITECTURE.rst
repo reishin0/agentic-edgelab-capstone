@@ -24,10 +24,10 @@ LangGraph is the single workflow authority. It separates a saved plan
 from exact-digest approval, then routes one allowed tool at a time.
 SQLite stores requests, results and milestone findings. Conflicting
 diagnostics or missing evidence prevent dependent calls. The historical
-adapter freezes paired daily closes against the session calendar; it
-does not fetch the later holdout. This release does not implement
-holdout execution/spent accounting, Johansen or Gregory-Hansen
-follow-ups, or LiteLLM/OpenRouter failover.
+adapter freezes paired daily closes against the session calendar. The core
+workflow uses in-sample observations. A separate signed one-use research host
+has passed synthetic holdout tests. The market holdout remains locked.
+Johansen and Gregory-Hansen follow-ups and cloud failover remain open.
 
 3.1: Method grounding
 ---------------------
@@ -62,9 +62,10 @@ links the recorded result digest. The controller owns the verdict, and
 the read-only report command checks the stored links and emits the
 report and reproducibility ledger without reconstructing or exporting
 raw bars. Local CLI approval is not multi-user authentication. Durable
-reservation/result handling is implemented; native graph checkpoints,
-authenticated escalation tickets and matched-budget comparisons remain
-open.
+reservation and result handling are implemented. Native graph checkpoints,
+authenticated escalation tickets, and an end-to-end matched-budget
+comparison remain open. The separate
+`advisory comparison <research/workflow_comparison/REPORT.md>`_ is complete.
 
 Operating scope
 ---------------
