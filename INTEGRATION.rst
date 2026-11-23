@@ -127,7 +127,8 @@ local snapshot with::
 The builder ranks eligible US-listed USD equities by positive fund
 holding market value and saves exactly 1,000 distinct tickers in ignored
 storage. The JSON records the holdings date, source digest and exclusions.
-The browser's Waitlist view is read-only and does not launch screening.
+The browser's Waitlist view lists the saved candidates. The optional pair
+console can test one selected pair at a time.
 Fund holdings are a research universe proxy, not an official index
 constituent file or evidence of cointegration. Do not use a later holdings
 snapshot to define an earlier historical test universe. The synthetic
@@ -152,6 +153,29 @@ Build and open a pinned snapshot with::
 No account or order APIs are used. The dashboard shows all of these
 instruments as not tested. See STABILITY_PLAN.rst for the proposed
 separate evaluation gates. The synthetic demo does not load the snapshot.
+
+Waitlist pair console
+~~~~~~~~~~~~~~~~~~~~~
+
+To enable the console in a local dashboard, supply a separate journal and a
+configured stock or cross-asset waitlist. Supply a frozen manifest for each
+saved pair that should be selectable::
+
+    python -B -m edgelab.dashboard --waitlist PATH_TO_WAITLIST.json --history-manifest PATH_TO_MANIFEST.json --pair-console-journal runtime/waitlist-pair-tests.sqlite
+
+Select two instruments and choose a matching frozen manifest supplied at
+launch or previously captured by the console. A stock pair can also request
+a bounded Alpaca IEX capture with explicit consent and the reviewed sessions
+through October 31, 2025.
+
+The console displays the protocol bound to the run and digest before offering
+approval. Once approved, it prints execution and the verified report. A
+ready report prompts you to refresh the dashboard. The reminder clears once
+the refreshed run list includes that result. Saved plans and reports remain
+available in the console after a service restart. An interrupted execution
+requires verification before any continuation. Plans and results go into the
+separate console journal. The existing research journals are opened read-only.
+This is local operator approval.
 
 Batch pair execution
 --------------------
@@ -286,9 +310,9 @@ journal explicitly to also see its runs. Repeat ``--history-manifest`` to
 opt in to plotting each corresponding approved sample. If the matching
 manifest is absent, the verdict remains visible but the chart is withheld.
 Duplicate run IDs across journals are rejected as ambiguous.
-The server binds only to loopback, has no write/approval
-API, and does not contact providers. Keep it local; it is not a multi-user
-service. The demo uses a temporary journal and never touches an existing run.
+The server binds only to loopback. The optional Waitlist pair console uses
+explicit local approval, and a stock capture requires a separate opt-in.
+The demo uses a temporary journal and never touches an existing run.
 The optional ETF entry-cost panel accepts a pinned aggregate result through
 ``--etf-entry-costs PATH_TO_RESULT.json`` in read-only mode. The operator
 supplies the result separately. The dashboard verifies the result hash and

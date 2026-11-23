@@ -137,11 +137,12 @@ function diagnostics(run) {
   else empty("stats", "No versioned numerical diagnostics available for this run.");
 }
 
-function trace(run) {
+function trace(run, loading) {
   const plan = run?.plan;
   const verdict = run?.verdict;
-  $("decision").replaceChildren(node("strong", verdict ? "Controller: " + nice(verdict.verdict) :
-    run ? nice(run.status) : "No run selected"), node("span", verdict?.reason ?? plan?.reason ?? ""));
+  const status = run ? nice(run.status) : loading ? "Loading selected run…" : "No run selected";
+  $("decision").replaceChildren(node("strong", verdict ? "Controller: " + nice(verdict.verdict) : status),
+    node("span", verdict?.reason ?? plan?.reason ?? ""));
   if (run) {
     const rows = run.timeline.map(event => {
       const [stage, tool] = event.key.split(":");
@@ -275,6 +276,7 @@ function showOutcome(run) {
   const history = plan.input?.history;
   const tickers = run.symbols ?? history?.source?.match(/; A=([A-Z]{3}\/[A-Z]{3}|[A-Z0-9.-]+), B=([A-Z]{3}\/[A-Z]{3}|[A-Z0-9.-]+);/)?.slice(1) ?? ["A", "B"];
   const [a, b] = tickers;
+  const sampleLabel = !history || history.classification === "synthetic" ? "Synthetic in-sample" : "Historical in-sample";
   const verdict = run.verdict;
   const policy = run.approval?.protocol?.lag_policy;
   const finding = run.reviews?.engle_granger;
@@ -298,7 +300,7 @@ function showOutcome(run) {
   description.append(node("h3", label), node("p", verdict?.reason ?? plan.reason),
     node("small", [window ? window.start + " to " + window.end : null,
       Number.isInteger(n) ? n + " observations" : null, policy ? policy + " approved" : null,
-      history ? "Historical in-sample" : "Synthetic in-sample"].filter(Boolean).join(" | ")));
+      sampleLabel].filter(Boolean).join(" | ")));
   summary.append(description);
   if (recordedP) {
     const evidence = node("div");
@@ -314,7 +316,7 @@ function showOutcome(run) {
   panel.replaceChildren(heading, summary, footer);
 }
 
-function show(run, cfg, demo) {
+function show(run, cfg, demo, loading = false) {
   if (!run || lagRun?.plan?.run_id !== run.plan.run_id || !candidateFor(run, lagChoice)) {
     lagChoice = run?.approval?.protocol?.lag_policy ?? run?.plan?.candidates?.[0]?.protocol?.lag_policy ?? null;
   }
@@ -324,7 +326,7 @@ function show(run, cfg, demo) {
   const plan = run?.plan, modelDecisions = plan?.model_decisions?.length ?? 0;
   const resultCount = Object.keys(run?.results ?? {}).length;
   group("metrics", [
-    ["Verdict", run?.verdict ? nice(run.verdict.verdict) : run ? nice(run.status) : "No run",
+    ["Verdict", run?.verdict ? nice(run.verdict.verdict) : run ? nice(run.status) : loading ? "Loading" : "No run",
       demo ? "Synthetic demonstration" : "Local journal"],
     ["Planning branches", plan?.branches?.length ?? "-", (plan?.candidates?.length ?? 0) + " approvable candidates at planning"],
     ["Numerical tools", resultCount + " / 3", Object.keys(run?.reviews ?? {}).length + " milestone reviews"],
@@ -347,14 +349,14 @@ function show(run, cfg, demo) {
     ["News credentials", cfg.news, "Dashboard reads only the local cache"]
   ]);
   const window = plan?.input?.window;
-  $("window").textContent = window ? window.start + " to " + window.end : "No approved sample";
+  $("window").textContent = window ? window.start + " to " + window.end : loading ? "" : "No approved sample";
   const chartMissing = plan?.input?.history ?
     "Historical chart requires a matching manifest and recorded observations." : "Awaiting approved synthetic observations.";
   chart("series", run?.chart, ["a", "b"], "Approved in-sample series A and B", chartMissing);
   chart("spread", run?.chart, ["spread"], "In-sample OLS residual A on B",
     run?.chart ? "No fitted relationship recorded." : chartMissing);
   diagnostics(run);
-  trace(run);
+  trace(run, loading);
 }
 
 async function api(path) {
@@ -366,22 +368,41 @@ async function api(path) {
 const viewContent = $("view-content");
 const viewLinks = Array.from($("view-nav").querySelectorAll("a"));
 const viewPanels = viewContent.querySelectorAll("[data-view]");
+const etfView = $("etf-entry-costs");
+const etfTip = $("etf-entry-dialog");
+let etfSnapshotAvailable = false;
 let activeView;
+let activeHash;
+
+function fragmentId() {
+  const fragment = location.hash.slice(1);
+  try { return decodeURIComponent(fragment); }
+  catch { return fragment; }
+}
 
 function showView(moveFocus = false) {
-  const target = $(location.hash.slice(1))?.closest("[data-view]");
-  const current = viewLinks.find(link => !link.hidden && link.hash === `#${target?.id}`) ?? viewLinks[0];
+  const hash = location.hash;
+  const target = $(fragmentId());
+  const targetView = target?.closest("[data-view]");
+  const current = viewLinks.find(link => link.hash === `#${targetView?.id}`) ?? viewLinks[0];
   const view = $(current.hash.slice(1));
-  if (view === activeView && !moveFocus) return;
+  $("etf-entry-nav").hidden = !etfSnapshotAvailable && view !== etfView;
+  if (view === activeView && hash === activeHash && !moveFocus) return;
 
   const focusWasInView = activeView?.contains(document.activeElement);
+  if (activeView === etfView && view !== etfView && etfTip.open) etfTip.close();
   for (const panel of viewPanels) panel.hidden = panel !== view;
   for (const link of viewLinks) {
     if (link === current) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
   activeView = view;
+  activeHash = hash;
   viewContent.scrollTop = 0;
+  window.scrollTo(0, 0);
+  if (target !== view && view.contains(target) && !target.hidden) {
+    target.scrollIntoView({block: "start"});
+  }
   if (moveFocus || focusWasInView) view.focus({preventScroll: true});
 }
 
@@ -399,37 +420,91 @@ window.addEventListener("popstate", () => showView());
 window.addEventListener("hashchange", () => showView());
 showView();
 
-let pending = 0;
-async function refreshRuns() {
-  const request = ++pending;
+let runContext = {configuration: {}, demo: false};
+const runListRead = {request: 0, loading: false, error: ""};
+const runEvidenceRead = {request: 0, loading: false, error: ""};
+function showRunReadStatus() {
+  const loading = $("run-loading");
+  const errorNotice = $("load-error");
+  const error = runEvidenceRead.error || runListRead.error;
+  errorNotice.textContent = error;
+  errorNotice.hidden = !error;
+  loading.textContent = runEvidenceRead.loading ? "Loading run evidence…" : "Loading saved runs…";
+  loading.hidden = Boolean(error) || !(runListRead.loading || runEvidenceRead.loading);
+}
+
+async function refreshSelectedRun() {
+  const request = ++runEvidenceRead.request;
   const select = $("run-select");
-  $("load-error").hidden = true;
+  const id = select.disabled ? null : select.value;
+  runEvidenceRead.loading = Boolean(id);
+  runEvidenceRead.error = "";
+  showRunReadStatus();
   try {
-    const data = await api("/api/runs");
-    if (request !== pending) return;
-    const id = data.runs.find(run => run.id === select.value)?.id ?? data.runs[0]?.id;
-    select.replaceChildren(...data.runs.map(run => {
-      const option = node("option", (run.symbols?.join(" / ") ?? nice(run.label)) + " | " + run.id.slice(0, 8));
-      option.value = run.id;
-      return option;
-    }));
-    if (!id) select.replaceChildren(node("option", "No recorded runs"));
-    else select.value = id;
-    select.disabled = !id;
+    if (id && lagRun?.plan.run_id !== id) show(null, runContext.configuration, runContext.demo, true);
     const run = id ? await api("/api/run?id=" + encodeURIComponent(id)) : null;
-    if (request === pending) show(run, data.configuration, data.demo);
+    if (request !== runEvidenceRead.request) return;
+    if (id && run?.plan?.run_id !== id) throw new Error("Local evidence did not match the selected run.");
+    show(run, runContext.configuration, runContext.demo);
   } catch (error) {
-    if (request !== pending) return;
-    show(null, {}, false);
-    $("load-error").textContent = error.message;
-    $("load-error").hidden = false;
+    if (request !== runEvidenceRead.request) return;
+    show(null, runContext.configuration, runContext.demo);
+    runEvidenceRead.error = error.message;
+  } finally {
+    if (request === runEvidenceRead.request) {
+      runEvidenceRead.loading = false;
+      showRunReadStatus();
+    }
   }
 }
 
+async function refreshRuns() {
+  const request = ++runListRead.request;
+  const evidenceRequest = runEvidenceRead.request;
+  const select = $("run-select");
+  runListRead.loading = true;
+  runListRead.error = "";
+  showRunReadStatus();
+  try {
+    const data = await api("/api/runs");
+    if (request !== runListRead.request) return;
+    const selected = select.disabled ? null : select.value;
+    const id = data.runs.find(run => run.id === selected)?.id ?? data.runs[0]?.id ?? null;
+    const options = data.runs.map(run => {
+      const option = node("option", (run.symbols?.join(" / ") ?? nice(run.label)) + " | " + run.id.slice(0, 8));
+      option.value = run.id;
+      return option;
+    });
+    runContext = {configuration: data.configuration, demo: data.demo};
+    select.replaceChildren(...(options.length ? options : [node("option", "No recorded runs")]));
+    if (id) select.value = id;
+    select.disabled = !id;
+    if (id !== selected || evidenceRequest === runEvidenceRead.request) refreshSelectedRun();
+    document.dispatchEvent(new CustomEvent("edgelab:runs-refreshed", {
+      detail: {runIds: data.runs.map(run => run.id)}
+    }));
+  } catch (error) {
+    if (request !== runListRead.request) return;
+    runListRead.error = "Run list unavailable. " + error.message;
+    if (select.disabled) select.replaceChildren(node("option", "Run list unavailable"));
+    else runListRead.error += " Showing the last loaded run list.";
+  } finally {
+    if (request === runListRead.request) {
+      runListRead.loading = false;
+      showRunReadStatus();
+    }
+  }
+}
+
+let newsRequest = 0;
+let newsLoading = false;
 async function refreshNews() {
+  const request = ++newsRequest;
+  newsLoading = true;
+  const host = $("headlines");
   try {
     const data = await api("/api/news");
-    $("news-state").textContent = data.status;
+    if (request !== newsRequest) return;
     const rows = [];
     if (data.origin === "synthetic") rows.push(node("div", "Illustrative headlines | No provider request | " +
       data.symbols.join(", "), "list-row"));
@@ -443,24 +518,41 @@ async function refreshNews() {
     }
     if (!data.articles.length) rows.push(node("p", data.ingested_at ? "No matching headlines in the snapshot." :
       "No cached headlines available.", "empty"));
-    $("headlines").replaceChildren(...rows);
+    $("news-state").textContent = data.status;
+    if (rows.length === host.children.length && rows.every((row, index) => row.isEqualNode(host.children[index]))) {
+      return;
+    }
+    const focused = document.activeElement;
+    const previousLink = host.contains(focused) ? focused.closest("a") : null;
+    const replacement = previousLink && rows.map(row => row.querySelector("a")).find(link =>
+      link?.href === previousLink.href && link.textContent === previousLink.textContent);
+    host.replaceChildren(...rows);
+    replacement?.focus({preventScroll: true});
   } catch {
+    if (request !== newsRequest) return;
     $("news-state").textContent = "Unavailable";
     empty("headlines", "Local news cache could not be read.");
+  } finally {
+    if (request === newsRequest) newsLoading = false;
   }
 }
 
 const waitlistPageSize = 25;
+let waitlistRequest = 0;
 let waitlist = null;
 let waitlistPage = 0;
+let waitlistLoadFailed = false;
 
 function renderWaitlist() {
   if (!waitlist) {
-    empty("waitlist-rows", "No pinned stock universe in this view.");
+    $("waitlist-page").hidden = true;
+    empty("waitlist-rows", waitlistLoadFailed ? "The stock waitlist could not be loaded. Use Refresh to try again." :
+      "No pinned stock universe in this view.");
     return;
   }
   const query = $("waitlist-filter").value.trim().toUpperCase();
   const matched = waitlist.entries.filter(row => row.symbol.includes(query) || row.sector.toUpperCase().includes(query));
+  waitlistPage = Math.max(0, Math.min(waitlistPage, Math.ceil(matched.length / waitlistPageSize) - 1));
   const offset = waitlistPage * waitlistPageSize;
   const visible = matched.slice(offset, offset + waitlistPageSize);
   $("waitlist-page").hidden = false;
@@ -474,27 +566,45 @@ function renderWaitlist() {
 }
 
 async function loadWaitlist() {
+  const request = ++waitlistRequest;
   try {
-    waitlist = await api("/api/waitlist");
-    if (waitlist) {
-      const n = waitlist.entries.length;
-      $("waitlist-state").textContent = n.toLocaleString() + " stocks | " +
-        (n * (n - 1) / 2).toLocaleString() + " possible pairs | Not tested";
-      $("waitlist-source").replaceChildren(safeLink(waitlist.fund, waitlist.source),
-        node("span", " | " + waitlist.as_of));
-      $("waitlist-filter").disabled = false;
-    }
+    const snapshot = await api("/api/waitlist");
+    if (request !== waitlistRequest) return;
+    if (snapshot !== null && !Array.isArray(snapshot.entries)) throw new Error("Invalid stock waitlist response");
+    waitlist = snapshot;
+    waitlistLoadFailed = false;
   } catch {
-    $("waitlist-state").textContent = "No waitlist loaded";
+    if (request !== waitlistRequest) return;
+    waitlistLoadFailed = true;
+  }
+  $("waitlist-filter").disabled = !waitlist;
+  const source = $("waitlist-source"), state = $("waitlist-state");
+  if (waitlist) {
+    const n = waitlist.entries.length;
+    state.textContent = waitlistLoadFailed ? "Stock refresh failed | Showing last loaded snapshot" :
+      n.toLocaleString() + " stocks | " + (n * (n - 1) / 2).toLocaleString() + " possible pairs | Not tested";
+    source.replaceChildren(safeLink(waitlist.fund, waitlist.source), node("span", " | " + waitlist.as_of));
+  } else {
+    state.textContent = waitlistLoadFailed ? "Stock waitlist unavailable" : "No stock waitlist configured";
+    source.textContent = "Local research universe";
   }
   renderWaitlist();
 }
 
-async function loadCrossAssets() {
-  const host = $("cross-assets");
-  let snapshot;
-  try { snapshot = await api("/api/cross-assets"); } catch { return; }
-  if (!snapshot) return;
+let crossAssetsRequest = 0;
+let crossAssetsLoaded = false;
+
+function crossAssetsNotice(message) {
+  const notice = node("p", message, "cross-assets-notice empty");
+  notice.setAttribute("role", "status");
+  return notice;
+}
+
+function renderCrossAssets(host, snapshot) {
+  if (!snapshot) {
+    host.replaceChildren(crossAssetsNotice("No FX or crypto snapshot configured."));
+    return;
+  }
   const money = new Intl.NumberFormat("en-US", {notation: "compact", style: "currency", currency: "USD",
     maximumFractionDigits: 2});
   host.replaceChildren(...[["fx", "FX spot", "BIS final turnover tables"],
@@ -516,19 +626,47 @@ async function loadCrossAssets() {
       "Survey ranking, not live quotes or broker eligibility.", "empty"));
     return panel;
   }));
-  host.hidden = false;
 }
 
+async function loadCrossAssets() {
+  const request = ++crossAssetsRequest;
+  const host = $("cross-assets");
+  try {
+    const snapshot = await api("/api/cross-assets");
+    if (request !== crossAssetsRequest) return;
+    renderCrossAssets(host, snapshot);
+    crossAssetsLoaded = snapshot !== null;
+  } catch {
+    if (request !== crossAssetsRequest) return;
+    const notice = crossAssetsNotice(crossAssetsLoaded ? "FX and crypto refresh failed. Showing the last loaded snapshot." :
+      "The FX and crypto snapshot could not be loaded. Use Refresh to try again.");
+    host.querySelector(".cross-assets-notice")?.remove();
+    host.prepend(notice);
+  }
+  if (!host.hidden) return;
+  host.hidden = false;
+  if (fragmentId() === "cross-assets" && activeView?.contains(host)) {
+    host.scrollIntoView({block: "start"});
+  }
+}
+
+let leaderboardRequest = 0;
+let leaderboardLoaded = false;
+let leaderboardLoading = false;
 async function loadLeaderboard() {
+  const request = ++leaderboardRequest;
+  leaderboardLoading = true;
   const host = $("leaderboard-groups");
   const state = $("leaderboard-state");
   try {
     const snapshot = await api("/api/leaderboard");
+    if (request !== leaderboardRequest) return;
+    if (snapshot !== null && !Array.isArray(snapshot.groups)) throw new Error("Invalid pair leaderboard response");
     if (!snapshot?.groups?.length) {
+      leaderboardLoaded = false;
       state.textContent = "";
       return empty("leaderboard-groups", "No pair screening snapshot loaded");
     }
-    state.textContent = "No validated trade";
     const count = new Intl.NumberFormat("en-US");
     const labels = {
       "stock-stock": "Stock / stock (raw pilot)",
@@ -560,9 +698,18 @@ async function loadLeaderboard() {
       panel.append(heading, coverage, grid);
       return panel;
     }));
+    leaderboardLoaded = true;
+    state.textContent = "No validated trade";
   } catch {
+    if (request !== leaderboardRequest) return;
+    if (leaderboardLoaded) {
+      state.textContent = "No validated trade | Refresh failed. Showing last loaded snapshot.";
+      return;
+    }
     state.textContent = "";
     empty("leaderboard-groups", "Pair screening evidence is unavailable");
+  } finally {
+    if (request === leaderboardRequest) leaderboardLoading = false;
   }
 }
 
@@ -609,15 +756,19 @@ function showBreakDateAccuracy(accuracy) {
   return panel;
 }
 
+let stabilityRequest = 0;
+let stabilitySnapshotLabel = "";
 async function loadStabilityStudy() {
+  const request = ++stabilityRequest;
   const host = $("stability-results"), state = $("stability-state");
   try {
     const study = await api("/api/synthetic-stability");
+    if (request !== stabilityRequest) return;
     if (!study) {
+      stabilitySnapshotLabel = "";
       state.textContent = "";
       return empty("stability-results", "No synthetic stability snapshot loaded");
     }
-    state.textContent = `${study.date} | Market holdout ${study.holdout}`;
     const summary = node("div", undefined, "decision");
     const targetMet = study.late_gain_pp >= study.late_target_pp;
     summary.append(node("strong", targetMet ? "Late-break benchmark met." : "Late-break benchmark not met."),
@@ -630,7 +781,14 @@ async function loadStabilityStudy() {
     const panel = node("div", undefined, "panel stability-table wide");
     panel.append(note, grid);
     host.replaceChildren(summary, showBreakDateAccuracy(study.break_date_accuracy), panel);
+    stabilitySnapshotLabel = `${study.date} | Market holdout ${study.holdout}`;
+    state.textContent = stabilitySnapshotLabel;
   } catch {
+    if (request !== stabilityRequest) return;
+    if (stabilitySnapshotLabel) {
+      state.textContent = stabilitySnapshotLabel + " | Refresh failed. Showing last loaded snapshot.";
+      return;
+    }
     state.textContent = "";
     empty("stability-results", "Synthetic stability evidence is unavailable");
   }
@@ -640,12 +798,10 @@ function renderEtfEntryCosts(study) {
   const money = new Intl.NumberFormat("en-US", {style: "currency", currency: "USD"});
   const budget = new Intl.NumberFormat("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0});
   const count = new Intl.NumberFormat("en-US");
-  $("etf-entry-scope").textContent = `${study.start_date} to ${study.end_date} | ${study.matched_sessions}/${study.scheduled_sessions} mornings matched | ${budget.format(study.budget_usd)} per purchase`;
-  $("etf-entry-clocks").textContent = `${count.format(study.clocks_fit)} of ${count.format(study.clocks_checked)} checked seconds fit all purchases`;
   const scenarios = ["base", "stress"];
   const ceiling = Math.ceil(Math.max(1, ...study.rows.flatMap(row =>
     scenarios.map(scenario => row[`${scenario}_mean_cost_bps`]))));
-  $("etf-entry-bars").replaceChildren(...study.rows.map(row => {
+  const chartRows = study.rows.map(row => {
     const line = node("div", undefined, "etf-chart-row");
     const bars = node("div");
     for (const scenario of scenarios) {
@@ -656,7 +812,7 @@ function renderEtfEntryCosts(study) {
     }
     line.append(node("strong", row.symbol), bars);
     return line;
-  }));
+  });
 
   const grid = table(["ETF", "Median spread", "Mean base", "Mean stress"], study.rows.map(row => {
     const symbol = node("strong", row.symbol);
@@ -668,47 +824,70 @@ function renderEtfEntryCosts(study) {
     })];
   }));
   grid.firstElementChild.setAttribute("aria-label", "ETF spread and modeled purchase cost");
+  $("etf-entry-scope").textContent = `${study.start_date} to ${study.end_date} | ${study.matched_sessions}/${study.scheduled_sessions} mornings matched | ${budget.format(study.budget_usd)} per purchase`;
+  $("etf-entry-clocks").textContent = `${count.format(study.clocks_fit)} of ${count.format(study.clocks_checked)} checked seconds fit all purchases`;
+  $("etf-entry-bars").replaceChildren(...chartRows);
   $("etf-entry-table").replaceChildren(grid);
 }
 
 let etfEntryRequest = 0;
+function showEtfEntryStatus(message) {
+  const status = $("etf-entry-status");
+  status.textContent = message;
+  status.hidden = !message;
+}
+
 async function loadEtfEntryCosts() {
   const request = ++etfEntryRequest;
-  const nav = $("etf-entry-nav");
-  let available = false;
+  showEtfEntryStatus(etfSnapshotAvailable ? "Refreshing ETF costs…" : "Loading ETF costs…");
   try {
     const study = await api("/api/etf-entry-costs");
     if (request !== etfEntryRequest) return;
-    if (study?.rows?.length) {
+    if (study !== null) {
+      if (!study.rows?.length) throw new Error("ETF cost snapshot is incomplete.");
       renderEtfEntryCosts(study);
-      available = true;
+      etfSnapshotAvailable = true;
+      showEtfEntryStatus("");
+    } else {
+      etfSnapshotAvailable = false;
+      showEtfEntryStatus("No saved ETF cost snapshot is available.");
     }
-  } catch {}
-  if (request !== etfEntryRequest) return;
-  nav.hidden = !available;
-  if (!available && $("etf-entry-dialog").open) $("etf-entry-dialog").close();
+  } catch {
+    if (request !== etfEntryRequest) return;
+    showEtfEntryStatus(etfSnapshotAvailable ? "Could not refresh ETF costs. Showing the last loaded snapshot." :
+      "Could not load ETF costs. Use Refresh to try again.");
+  }
+  if (!etfSnapshotAvailable && etfTip.open) etfTip.close();
+  $("etf-entry-panel").hidden = !etfSnapshotAvailable;
+  $("etf-entry-tip").hidden = !etfSnapshotAvailable;
   showView();
 }
 
-const etfTip = $("etf-entry-dialog");
 $("etf-entry-tip").addEventListener("click", () => etfTip.showModal());
 $("etf-tip-close").addEventListener("click", () => etfTip.close());
 etfTip.addEventListener("close", () => {
-  ($("etf-entry-costs").hidden ? $("refresh") : $("etf-entry-tip")).focus();
+  if (activeView === etfView && !etfTip.open) {
+    (etfSnapshotAvailable ? $("etf-entry-tip") : etfView).focus({preventScroll: true});
+  }
 });
 
 $("waitlist-filter").addEventListener("input", () => { waitlistPage = 0; renderWaitlist(); });
 $("waitlist-prev").addEventListener("click", () => { waitlistPage--; renderWaitlist(); });
 $("waitlist-next").addEventListener("click", () => { waitlistPage++; renderWaitlist(); });
-$("run-select").addEventListener("change", refreshRuns);
-$("refresh").addEventListener("click", () => {
-  refreshRuns(); refreshNews(); loadLeaderboard(); loadStabilityStudy(); loadEtfEntryCosts();
-});
-refreshRuns();
-refreshNews();
-loadWaitlist();
-loadCrossAssets();
-loadLeaderboard();
-loadStabilityStudy();
-loadEtfEntryCosts();
-setInterval(() => { if (!document.hidden) { refreshNews(); loadLeaderboard(); } }, 20000);
+$("run-select").addEventListener("change", refreshSelectedRun);
+function refreshDashboard() {
+  refreshRuns();
+  refreshNews();
+  loadWaitlist();
+  loadCrossAssets();
+  loadLeaderboard();
+  loadStabilityStudy();
+  loadEtfEntryCosts();
+}
+$("refresh").addEventListener("click", refreshDashboard);
+refreshDashboard();
+setInterval(() => {
+  if (document.hidden) return;
+  if (!newsLoading) refreshNews();
+  if (!leaderboardLoading) loadLeaderboard();
+}, 20000);

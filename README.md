@@ -7,7 +7,7 @@ Agentic EdgeLab is a local research assistant for quantitative analysts who need
 1. A **Planner** receives the blinded question and approved method context. LangChain retrieval returns checked method notes. A bounded Tree-of-Thought search ranks eligible protocol branches before the Planner sees sample values.
 2. The **LangGraph controller** pauses for the local operator to approve the exact protocol digest. It checks scope, journals every transition in SQLite and dispatches deterministic statistical tools.
 3. The **Critic** reviews evidence and flags conflicts. Gate rules and the controller determine whether the workflow continues, stops, requests revision or remains unresolved.
-4. The **Reporter** explains the recorded verdict from verified evidence. Optional CrewAI role tasks advise inside the workflow. The local MCP interface and dashboard provide read-only inspection.
+4. The **Reporter** explains the recorded verdict from verified evidence. Optional CrewAI role tasks advise inside the workflow. The local MCP interface and dashboard provide read-only inspection by default. The optional [Waitlist pair console](INTEGRATION.rst#waitlist-pair-console) runs a selected pair after exact local approval.
 
 The tools use statsmodels for ADF and KPSS, bidirectional Engle–Granger tests and stability diagnostics. The project includes local method notes, optional LM Studio and OpenRouter model advice, and optional Pinecone retrieval. See [architecture](ARCHITECTURE.rst), [message contracts](CONTRACTS.rst) and [dashboard settings](DEPLOYMENT.rst).
 

@@ -7,19 +7,14 @@
   <link rel="stylesheet" href="/ui.css">
   <script src="/ui.js" defer></script>
   <script src="/settings.js" defer></script>
+  <script src="/pair-console.js" defer></script>
 </head>
 <body>
   <header class="bar">
     <div class="shell top">
-      <a class="brand" id="dashboard-home" href="#overview"><span class="mark" aria-hidden="true">E</span> EdgeLab</a>
-      <div class="controls">
-        <label for="run-select">Run</label><select id="run-select" disabled><option>Loading runs</option></select>
-        <button id="refresh" title="Refresh local evidence" aria-label="Refresh local evidence">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.2 7a7 7 0 0 1 12-1L20 12M4 12l1.8 6a7 7 0 0 0 12-1"/></svg>
-        </button>
-      </div>
+      <a class="brand" id="dashboard-home" href="#overview"><span class="mark" aria-hidden="true">E</span><span class="brand-name">EdgeLab</span></a>
       <div class="header-actions">
-        <span class="status"><i></i> Local read-only</span>
+        <span class="status"><i></i> <span id="dashboard-mode">Local read-only</span></span>
         <button type="button" id="open-settings" class="settings-button" aria-haspopup="dialog"
                 aria-controls="research-settings">Settings</button>
       </div>
@@ -34,6 +29,22 @@
       <a href="#waitlist">Waitlist</a>
       <a href="#checkpoints">Checkpoints</a>
     </nav>
+    <div class="shell monitor-toolbar">
+      <h1 id="overview-title">Relationship monitor</h1>
+      <div class="run-picker">
+        <label for="run-select">View saved cointegration results</label>
+        <div class="run-controls">
+          <select id="run-select" disabled><option>Loading runs</option></select>
+          <button type="button" id="refresh" title="Refresh saved results" aria-label="Refresh saved results">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.2 7a7 7 0 0 1 12-1L20 12M4 12l1.8 6a7 7 0 0 0 12-1"/></svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <p id="run-loading" class="shell header-message" role="status" hidden></p>
+    <p id="load-error" class="shell header-message alert" role="alert" hidden></p>
+    <p id="pair-ready" class="shell header-message" role="status"></p>
   </header>
   <dialog id="research-settings" class="settings-dialog" aria-labelledby="settings-title">
     <div class="settings-heading">
@@ -91,7 +102,6 @@
     </section>
   </dialog>
   <main id="view-content" tabindex="0">
-    <p id="load-error" class="alert" role="alert" hidden></p>
     <section id="overview" data-view aria-labelledby="overview-title" tabindex="-1">
       <p class="liability-notice">
         <strong>Liability disclaimer</strong>
@@ -100,7 +110,6 @@
         and contributors disclaim liability for losses arising from use of or reliance on this dashboard
         or its outputs.
       </p>
-      <div class="intro"><div class="eyebrow">Research operations</div><h1 id="overview-title">Relationship monitor</h1></div>
       <article id="outcome" class="panel outcome" aria-label="Recorded research outcome" aria-live="polite" hidden></article>
       <div id="metrics" class="metrics" aria-label="Run summary"></div>
       <article id="lag-panel" class="panel wide" aria-labelledby="lag-title" hidden>
@@ -142,9 +151,10 @@
       <div class="section-head">
         <h2 id="etf-entry-title">ETF entry costs</h2>
         <button type="button" id="etf-entry-tip" class="etf-tip-button" aria-haspopup="dialog"
-                aria-controls="etf-entry-dialog">How to read</button>
+                aria-controls="etf-entry-dialog" hidden>How to read</button>
       </div>
-      <article class="panel etf-entry-panel">
+      <p id="etf-entry-status" class="panel empty" role="status" hidden></p>
+      <article id="etf-entry-panel" class="panel etf-entry-panel" hidden>
         <div class="panel-head etf-entry-meta">
           <p id="etf-entry-scope"></p><span id="etf-entry-clocks"></span>
         </div>
@@ -189,6 +199,46 @@
     </section>
     <section id="waitlist" data-view aria-labelledby="waitlist-title" tabindex="-1" hidden>
       <div class="section-head"><h2 id="waitlist-title">Asset waitlists</h2><span id="waitlist-state">No stock waitlist loaded</span></div>
+      <article id="pair-console" class="panel pair-console" aria-labelledby="pair-console-title" hidden>
+        <div class="panel-head"><h3 id="pair-console-title">Cointegration test</h3><span id="pair-stage"></span></div>
+        <form id="pair-setup" class="pair-console-body">
+          <div class="pair-fields">
+            <label for="pair-a">Asset A<input id="pair-a" type="text" list="pair-assets" placeholder="Search ticker" required autocomplete="off" spellcheck="false"></label>
+            <label for="pair-b">Asset B<input id="pair-b" type="text" list="pair-assets" placeholder="Search ticker" required autocomplete="off" spellcheck="false"></label>
+            <datalist id="pair-assets"></datalist>
+          </div>
+          <label id="pair-history-field" for="pair-history" hidden>History
+            <select id="pair-history"></select>
+          </label>
+          <div id="pair-capture-dates" class="pair-fields" hidden>
+            <label for="pair-start">First session<input id="pair-start" type="date" value="2025-01-02" min="2025-01-02" max="2025-10-31"></label>
+            <label for="pair-end">Last session<input id="pair-end" type="date" value="2025-10-31" min="2025-01-02" max="2025-10-31"></label>
+          </div>
+          <p id="pair-input-note" class="pair-note">Choose two distinct assets from the waitlists.</p>
+          <div class="pair-actions">
+            <button id="pair-prepare" type="submit" disabled>Prepare plan</button>
+            <button id="pair-retry" type="button" hidden>Retry console</button>
+          </div>
+        </form>
+        <div id="pair-review" class="pair-console-body pair-review" hidden>
+          <label for="pair-candidate">Lag policy<select id="pair-candidate"></select></label>
+          <p class="pair-note">Choose a policy and review its exact protocol digest before approving the test.</p>
+          <div id="pair-approval-summary" class="pair-note" hidden>
+            <p>Run <code id="pair-run-id"></code></p>
+            <p>Protocol SHA-256 <code id="pair-digest"></code></p>
+          </div>
+          <details id="pair-protocol-details" hidden>
+            <summary>Review full protocol</summary>
+            <pre id="pair-protocol" class="pair-output pair-protocol" aria-label="Selected protocol" tabindex="0"></pre>
+          </details>
+          <div class="pair-actions">
+            <button id="pair-approve" type="button" disabled>Approve protocol and run</button>
+            <button id="pair-discard" type="button">Set plan aside</button>
+          </div>
+        </div>
+        <p id="pair-error" class="pair-error" hidden></p>
+        <pre id="pair-output" class="pair-output" aria-label="Cointegration console output" tabindex="0" hidden></pre>
+      </article>
       <article class="panel">
         <div class="panel-head waitlist-head">
           <div id="waitlist-source">Local research universe</div>
