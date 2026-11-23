@@ -192,16 +192,21 @@ tr:last-child td { border-bottom: 0; }
 .list-row:last-child { border: 0; }
 .list-row small { display: block; margin-top: 3px; }
 .alert { padding: 8px 12px; margin-top: 12px; background: #f9e9e9; color: #8a3241; }
-.coverage > div { display: grid; grid-template-columns: 36px 170px 1fr; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+.checkpoint-intro { padding: 12px 14px; border-bottom: 1px solid var(--line);
+  border-radius: 5px 5px 0 0; background: var(--paper); color: var(--muted); }
+.coverage > div { display: grid; grid-template-columns: 36px minmax(140px, 205px) minmax(0, 1fr);
+  gap: 6px 12px; padding: 13px 14px; border-bottom: 1px solid var(--line); }
 .coverage > div:last-child { border: 0; }
-.coverage b { color: var(--teal); }
-.coverage p { color: var(--muted); }
+.coverage > div > b { color: var(--teal); }
+.checkpoint-details p { color: var(--muted); }
+.checkpoint-details p + p { margin-top: 5px; }
+.checkpoint-details strong { color: var(--ink); margin-inline-end: 4px; }
 footer { border-top: 1px solid var(--line); margin-top: 26px; padding: 16px 0 23px; font-weight: 650; }
 footer span { color: var(--muted); font-weight: 400; margin-left: 9px; }
 @media (max-width: 800px) {
   :root { --shell-gutter: 16px; }
-  .coverage > div { grid-template-columns: 32px 1fr; }
-  .coverage p { grid-column: 2; }
+  .coverage > div { grid-template-columns: 32px minmax(0, 1fr); }
+  .checkpoint-details { grid-column: 2; }
 }
 @media (max-width: 590px) {
   .top { grid-template-columns: 1fr auto; gap: 8px; padding-block: 8px; }

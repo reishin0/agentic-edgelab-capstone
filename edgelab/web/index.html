@@ -206,13 +206,72 @@
       <section id="cross-assets" class="split wide" aria-label="FX and crypto waitlists" hidden></section>
     </section>
     <section id="checkpoints" data-view aria-labelledby="checkpoints-title" tabindex="-1" hidden>
-      <div class="section-head"><h2 id="checkpoints-title">Checkpoint coverage</h2><span>Design vs. implementation</span></div>
+      <div class="section-head"><h2 id="checkpoints-title">Capstone checkpoints</h2><span>November 2026</span></div>
       <div class="panel coverage">
-        <div><b>1.1</b><h3>Local architecture</h3><p>LM Studio is the default adviser in Settings. Planner advice is optional. The controller and its Critic apply deterministic evidence rules.</p></div>
-        <div><b>2.1</b><h3>Research loop</h3><p>Approval, typed tools, milestone review and durable evidence. Holdout evaluation, Johansen/Gregory–Hansen and cloud fallback are not enabled.</p></div>
-        <div><b>3.1</b><h3>Grounded retrieval</h3><p>Reviewed local corpus or optional Pinecone retrieval. Verbatim quote verification and access-control demonstrations remain open.</p></div>
-        <div><b>4.1</b><h3>Structured planning</h3><p>Outcome-blind beam search, retained pruning reasons and MCP catalog/trace. CrewAI tasks and broader LangChain adapters remain open.</p></div>
-        <div><b>5.1</b><h3>Coordination</h3><p>Three roles, one controller, versioned Critic findings and one-way reporting. Authenticated multi-user escalation and baseline comparisons remain open.</p></div>
+        <p class="checkpoint-intro">The six required course assignments guide the development of one capstone agent.
+          Each applies a module’s concepts to the project and builds toward the final report and presentation.
+          <a href="https://execonline.cs.cmu.edu/agentic-ai-program">Program outline</a>
+        </p>
+        <div>
+          <b>1.1</b><h3>Project scoping and initial agent design</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Define the problem, who the agent serves and what it should do.</p>
+            <p><strong>EdgeLab</strong> Helps researchers assess whether two asset prices share a stable long-run
+              relationship. Python runs the calculations. In a synthetic run, Ornith in LM Studio supplied one
+              structured choice, and EdgeLab saved two eligible protocols for approval.</p>
+          </div>
+        </div>
+        <div>
+          <b>2.1</b><h3>Agent design refinement</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Refine how the agent makes decisions, what it remembers and which
+              tools it uses.</p>
+            <p><strong>EdgeLab</strong> The researcher approves the exact saved run and protocol digest before
+              execution. SQLite preserves plans, tool calls, Critic reviews and verdicts. Native LangGraph
+              checkpointing and cloud-to-local failover remain deployment options.</p>
+          </div>
+        </div>
+        <div>
+          <b>3.1</b><h3>RAG and retrieval design</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Choose what knowledge the agent should retrieve, how it finds it and
+              how it uses source evidence to ground its decisions.</p>
+            <p><strong>EdgeLab</strong> Planning uses reviewed bundled notes by default. Optional Pinecone retrieval
+              verifies the required ADF, KPSS and Engle–Granger records by exact ID. The dashboard diagnostic
+              verified all three records. The separate semantic ranking found one of three.</p>
+          </div>
+        </div>
+        <div>
+          <b>4.1</b><h3>Tree-of-Thought integration</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Decide where exploring several reasoning paths may help, how to
+              compare and prune them, and how to test the benefit.</p>
+            <p><strong>EdgeLab</strong> Beam search ranks protocols before seeing asset labels or observations. It
+              uses width two, four levels and up to 21 visits. OpenRouter is opt-in, and all six tested free routes
+              returned HTTP 404.</p>
+          </div>
+        </div>
+        <div>
+          <b>5.1</b><h3>Multi-agent architecture and coordination</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Define each agent’s responsibilities, what information they share and
+              how they coordinate their work.</p>
+            <p><strong>EdgeLab</strong> One controller coordinates the Planner, Critic and Reporter. Across 24 blinded
+              synthetic cases, optional CrewAI advice scored 2.08 percentage points above the single-agent approach,
+              below the 10-point gate. Evaluation on independently judged cases remains open.</p>
+          </div>
+        </div>
+        <div>
+          <b>6.1</b><h3>Safety guardrails and human intervention</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Identify failure modes, set guardrails and evaluation measures, and
+              define when a human must intervene.</p>
+            <p><strong>EdgeLab</strong> An uncertain tool outcome blocks dependent calls and produces a read-only
+              handoff. The bundled loopback MCP gateway demonstrated verified synthetic report reads and recovery
+              of an operator-approved draft save by checking its receipt before resuming. Scientific approval and
+              execution stay in the CLI, and the market holdout remains locked.</p>
+          </div>
+        </div>
       </div>
     </section>
     <footer>Agentic EdgeLab <span>Research only &middot; no trading or holdout authorization</span></footer>
