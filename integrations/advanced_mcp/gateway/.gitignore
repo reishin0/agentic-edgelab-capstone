@@ -1,0 +1,7 @@
+/.pytest_cache/
+/.uv-cache/
+/.venv/
+/code_runtime/node_modules/
+/code_runtime/.pnpm-store/
+/runtime/
+__pycache__/

@@ -144,6 +144,15 @@ class ReportServiceTests(unittest.TestCase):
                 with self.assertRaisesRegex(StudyUnavailable, "^Study unavailable$"):
                     service.report("pinned")
 
+    def test_canonical_case_aliases_reject_swapped_valid_pins(self):
+        stable = self.create_run("shared-trend")
+        shifted = self.create_run("spread-level-shift")
+        service = self.configure(**{"shared-trend": shifted, "spread-level-shift": stable})
+        self.assertEqual(service.list_runs()["runs"], [])
+        for case in ("shared-trend", "spread-level-shift"):
+            with self.subTest(case=case), self.assertRaises(StudyUnavailable):
+                service.report(case)
+
     def test_pin_mismatch_and_corrupt_ledger_are_hidden(self):
         saved = self.create_run("shared-trend")
         wrong = {**saved, "bundle": {**saved["bundle"], "ledger_sha256": "0" * 64}}

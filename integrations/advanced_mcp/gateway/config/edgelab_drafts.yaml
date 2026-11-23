@@ -1,0 +1,38 @@
+host: 127.0.0.1
+port: 8800
+surface: code
+allowed_hosts: ["127.0.0.1", "localhost"]
+allowed_origins: ["http://127.0.0.1:8800", "http://localhost:8800"]
+requests_per_minute: 60
+durable:
+  database: ../runtime/edgelab-drafts-workflows.sqlite3
+  approval_seconds: 300
+auth:
+  mode: local_tokens
+  tokens:
+    - env: ADVANCED_MCP_EDGELAB_DRAFT_READER_TOKEN
+      subject: edgelab-draft-reader
+      roles: [edgelab-draft-reader]
+    - env: ADVANCED_MCP_EDGELAB_DRAFT_OPERATOR_TOKEN
+      subject: edgelab-draft-operator
+      roles: [edgelab-draft-reader, edgelab-draft-operator, operator]
+backends:
+  - name: edgelab
+    kind: openapi
+    url: http://127.0.0.1:8801/v1
+    spec_file: edgelab_drafts.openapi.json
+    roles: [edgelab-draft-reader, edgelab-draft-operator]
+    allowed_tools: [previewDraft, saveDraft, getDraftReceipt, checkDraftReadiness, getDraftHandoff]
+    read_only_tools: [previewDraft, getDraftReceipt, checkDraftReadiness, getDraftHandoff]
+    durable_only_tools:
+      saveDraft: getDraftReceipt
+    tool_roles:
+      saveDraft: [edgelab-draft-operator]
+      getDraftReceipt: [edgelab-draft-operator]
+      checkDraftReadiness: [edgelab-draft-operator]
+      getDraftHandoff: [edgelab-draft-operator]
+    token_env: EDGE_DRAFT_SERVICE_TOKEN
+    max_response_bytes: 32768
+    pool_size: 2
+    queue_size: 8
+    timeout_seconds: 5

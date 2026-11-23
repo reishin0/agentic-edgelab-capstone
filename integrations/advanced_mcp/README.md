@@ -1,34 +1,102 @@
-# EdgeLab reports through Advanced MCP
+# Advanced MCP in EdgeLab
 
-This checkout includes a loopback adapter for comparing approved synthetic EdgeLab studies in an MCP client. The adapter verifies the saved ledger and returns the verdict, selected statistical diagnostics, Critic rules, and evidence hashes. Its profile exposes two read operations to a dedicated role.
+EdgeLab includes the [Advanced MCP gateway package](gateway/SOURCE.md) and two loopback profiles. The report profile serves verified synthetic research evidence. The draft profile implements authenticated operator approval, receipt reconciliation, and resume for synthetic draft saves. The gateway workflow database, draft database, and EdgeLab scientific journal each have their own purpose and file.
 
-## Prepare synthetic reports
+## Install from this checkout
 
-Run from the EdgeLab checkout with its research environment active. Use a fresh local journal and repeat the planning, approval, and reporting steps for `shared-trend` and `spread-level-shift`.
+From the EdgeLab repository root in PowerShell, activate the EdgeLab Python environment. The gateway uses its own virtual environment and dependency lock. The draft profile also requires Node.js 20 or newer and pnpm.
 
-```sh
-python -m pip install -e '.[research]'
-python -B -m edgelab.capstone --journal runtime/mcp-demo.sqlite plan --case shared-trend
-python -B -m edgelab.capstone --journal runtime/mcp-demo.sqlite execute --run RUN_ID --approve PROTOCOL_SHA256
-python -B -m edgelab.capstone --journal runtime/mcp-demo.sqlite report --run RUN_ID
+```powershell
+python -m pip install -e '.[research,mcp]'
+$edgeGateway = 'integrations/advanced_mcp/gateway'
+uv sync --project $edgeGateway --locked --extra test
+pnpm --dir "$edgeGateway/code_runtime" install --frozen-lockfile
 ```
 
-Create a local JSON manifest with `schema_version` set to `1` and a `studies` object. Under each study name, put the `run_id` and `bundle.ledger_sha256` from its verified report. Check the plan’s saved case before assigning the label. This prototype verifies the run and ledger digests and relies on the manifest author for the label. Keep the journal and manifest in `runtime/`.
+The commands below assume you work from the EdgeLab repository root. Supply the named credentials privately as distinct, randomly generated bearer tokens. Use the same service token in the EdgeLab adapter and its corresponding gateway. The MCP client uses only a role token.
 
-Start the adapter from the checkout after setting a dedicated `EDGELAB_READER_SERVICE_TOKEN` through private process configuration.
+## Run the draft profile
 
-```sh
-python -B -m integrations.advanced_mcp.report_service --journal runtime/mcp-demo.sqlite --manifest runtime/mcp-studies.json --token-env --port 8799
+In the EdgeLab environment, set `EDGE_DRAFT_SERVICE_TOKEN` and run the draft adapter.
+
+```powershell
+New-Item -ItemType Directory -Force 'runtime/advanced_mcp' | Out-Null
+python -B -m integrations.advanced_mcp.draft_service `
+  --draft-db runtime/advanced_mcp/drafts.sqlite3 --token-env --port 8801
 ```
 
-## Connect the gateway
+In a second terminal, set the same `EDGE_DRAFT_SERVICE_TOKEN` and two distinct client values, `ADVANCED_MCP_EDGELAB_DRAFT_READER_TOKEN` and `ADVANCED_MCP_EDGELAB_DRAFT_OPERATOR_TOKEN`. Start the bundled profile.
 
-The gateway runs in a separate Advanced MCP checkout with native OpenAPI connector support. Place [the sample profile](edgelab_research.yaml) and [API definition](edgelab.openapi.json) together in its configuration directory. Provide the same service token and a distinct `ADVANCED_MCP_EDGELAB_READER_TOKEN` in the gateway’s private environment, then start its classic profile.
-
-```sh
-python -B -m advanced_mcp.cli gateway --config config/edgelab_research.yaml
+```powershell
+$env:PYTHON_DOTENV_DISABLED = '1'
+& ./integrations/advanced_mcp/gateway/.venv/Scripts/python.exe -B -m advanced_mcp.cli gateway `
+  --config integrations/advanced_mcp/gateway/config/edgelab_drafts.yaml
 ```
 
-Connect your MCP client to `http://127.0.0.1:8798/mcp` using the reader token. Ask it to list the two reports and compare their Engle–Granger results, CUSUM p-values, and Critic evidence hashes. The `continue` or `stop` verdict applies to the saved synthetic run. The market holdout stays locked.
+Connect an MCP client to `http://127.0.0.1:8800/mcp` using Streamable HTTP. The reader can prepare a preview for `shared-trend` or `spread-level-shift`. An operator uses the workflow HTTP routes at the same address with the operator token. Ordinary MCP calls can read previews, receipts, readiness, and handoffs as their role permits. A draft save requires the durable workflow and exact operator approval.
 
-The source checkout also contains an experimental draft adapter and its isolated tests. The sample gateway profile covers report reads. The draft workflow still needs save receipt validation, rejection handling, and preview binding fixes before release as a gateway profile.
+Use this Code Mode program for the `code` field when creating a workflow. Replace `DRAFT_UUID` with a new UUIDv4. The workflow's outer `request_id` identifies the execution.
+
+```javascript
+async () => {
+  const preview = await connectors.edgelab.previewDraft({body: {
+    template_id: 'cointegration-fixture',
+    case: 'shared-trend',
+    hypothesis: 'The synthetic series share a common trend.'
+  }});
+  return connectors.edgelab.saveDraft({body: {
+    request_id: 'DRAFT_UUID',
+    preview_sha256: preview.preview_sha256,
+    draft: preview.draft
+  }});
+}
+```
+
+| Step | Operator action |
+| --- | --- |
+| Prepare and inspect | `POST /code/workflows` with a unique `request_id` and Code Mode `code` that previews and saves the draft. Inspect `GET /code/workflows/{execution_id}` for the pending operation, arguments, binding, and `approval_id`. |
+| Approve and resume | `POST /code/workflows/{execution_id}/approve` with `{"approval_id":"..."}`, followed by `POST /code/workflows/{execution_id}/resume` with `{}`. |
+| Reconcile an uncertain save | Retrieve the exact backend receipt for the recorded `saveDraft` arguments using `getDraftReceipt`. `POST /code/workflows/{execution_id}/resolve` with `{"sequence":2,"result":{...}}` using the recorded operation sequence and exact receipt. A successful resolution returns `ready`. Call `/resume` to reuse the receipt. |
+| Hand off for research | Use `getDraftHandoff` for the saved draft. Run its fixed synthetic `capstone plan --case ...` command in the EdgeLab research environment with a separate `--journal` path before `plan`. Review the resulting candidates and use the CLI's exact run and protocol approval to execute. |
+
+A matching receipt can recover a committed save whose response was lost. If the receipt is unavailable, the workflow stays in reconciliation. For a verified rejection before a write, prepare a fresh preview and workflow. The workflow journal defaults to `gateway/runtime/edgelab-drafts-workflows.sqlite3` relative to this guide. Keep it and the draft database private.
+
+## Run the report profile
+
+Create a fresh synthetic journal. For example, run the following commands for `shared-trend`, substituting the displayed run ID and protocol digest in the last two commands. Repeat for `spread-level-shift` if you want both reports.
+
+```powershell
+python -B -m edgelab.capstone --journal runtime/advanced_mcp/synthetic.sqlite plan --case shared-trend
+python -B -m edgelab.capstone --journal runtime/advanced_mcp/synthetic.sqlite execute --run RUN_ID --approve PROTOCOL_SHA256
+python -B -m edgelab.capstone --journal runtime/advanced_mcp/synthetic.sqlite report --run RUN_ID
+```
+
+Prepare a local manifest with `schema_version` 1 and a `studies` object. Each entry maps a study ID to the report's `run_id` and `bundle.ledger_sha256` (stored as `ledger_sha256` in the manifest). Use the actual fixture case as the study ID for `shared-trend` and `spread-level-shift`.
+
+Set `EDGELAB_READER_SERVICE_TOKEN` in the EdgeLab environment and start the report adapter with the chosen synthetic journal and manifest.
+
+```powershell
+python -B -m integrations.advanced_mcp.report_service `
+  --journal runtime/advanced_mcp/synthetic.sqlite `
+  --manifest runtime/advanced_mcp/studies.json --token-env --port 8799
+```
+
+In a separate terminal, set the same `EDGELAB_READER_SERVICE_TOKEN` and a distinct `ADVANCED_MCP_EDGELAB_READER_TOKEN`. Start the report gateway.
+
+```powershell
+$env:PYTHON_DOTENV_DISABLED = '1'
+& ./integrations/advanced_mcp/gateway/.venv/Scripts/python.exe -B -m advanced_mcp.cli gateway `
+  --config integrations/advanced_mcp/gateway/config/edgelab_research.yaml
+```
+
+Connect the MCP client to `http://127.0.0.1:8798/mcp` with the reader token. Use `edgelab__listRuns` and `edgelab__getRunReport` to compare the recorded verdicts, Engle–Granger and CUSUM p-values, Critic rules, and evidence hashes. The results are in-sample synthetic findings.
+
+## Verify locally
+
+The tests generate their own temporary tokens and stores, launch both loopback profiles, and use real MCP clients. The report check builds fresh fixtures through the EdgeLab CLI. The draft check simulates a lost response after a successful save and verifies exact receipt recovery without replaying the write.
+
+```powershell
+$env:EDGELAB_TEST_PYTHON = (Get-Command python).Source
+& ./integrations/advanced_mcp/gateway/.venv/Scripts/python.exe -B -m pytest `
+  integrations/advanced_mcp/gateway/tests -q
+```

@@ -35,6 +35,8 @@ BASE_ROUTE = "/v1/drafts"
 READ_ROUTE = re.compile(r"/v1/drafts/([0-9a-f-]{36})/(readiness|handoff)\?preview_sha256=([0-9a-f]{64})")
 METHOD_GATES = ("ADF/KPSS integration diagnostics", "Bidirectional Engle-Granger", "CUSUM stability")
 MISSING_REQUIREMENTS = ("EdgeLab plan", "Exact run and protocol approval")
+LEGACY_PREVIEW_KEYS = {"schema_version", "draft", "binding"}
+PREVIEW_KEYS = LEGACY_PREVIEW_KEYS | {"status", "scope", "method_gates", "missing_requirements"}
 
 
 class DraftConflict(ValueError):
@@ -72,10 +74,12 @@ def _save_input(value: object) -> tuple[str, str, dict]:
     return _request_id(value["request_id"]), sha(value["preview_sha256"]), normalize_draft(value["draft"])
 
 
-def _preview_payload(draft: dict) -> dict:
+def _preview_payload(draft: dict, release_sha256: str) -> dict:
     fixture = {"case": draft["case"], "seed": SYNTHETIC_SEED, "window": asdict(window_for_demo())}
-    return {"schema_version": VERSION, "draft": draft,
-            "binding": {"release_sha256": release_fingerprint(), "corpus_sha256": CORPUS_SHA256,
+    return {"schema_version": VERSION, "draft": draft, "status": "ready_for_review",
+            "scope": "synthetic in-sample", "method_gates": list(METHOD_GATES),
+            "missing_requirements": list(MISSING_REQUIREMENTS),
+            "binding": {"release_sha256": release_sha256, "corpus_sha256": CORPUS_SHA256,
                         "fixture_sha256": fingerprint(fixture)}}
 
 
@@ -94,13 +98,16 @@ class DraftService:
         self._path = database.resolve()
         if not self._path.parent.is_dir() or (self._path.exists() and not self._path.is_file()):
             raise ValueError("Choose a draft database in an existing local directory")
+        self._release_sha256 = release_fingerprint()
 
-    @staticmethod
-    def preview(value: object) -> dict:
-        payload = _preview_payload(normalize_draft(value))
-        return {**payload, "preview_sha256": fingerprint(payload), "status": "ready_for_review",
-                "scope": "synthetic in-sample", "method_gates": list(METHOD_GATES),
-                "missing_requirements": list(MISSING_REQUIREMENTS)}
+    def _current_preview(self, draft: dict) -> dict:
+        if release_fingerprint() != self._release_sha256:
+            raise DraftConflict("EdgeLab source changed; restart the draft service and prepare a fresh preview")
+        return _preview_payload(draft, self._release_sha256)
+
+    def preview(self, value: object) -> dict:
+        payload = self._current_preview(normalize_draft(value))
+        return {**payload, "preview_sha256": fingerprint(payload)}
 
     @staticmethod
     def _schema(db: sqlite3.Connection, *, initialize: bool = False) -> None:
@@ -130,7 +137,8 @@ class DraftService:
         try:
             preview = _parse_json(preview_raw)
             receipt = _parse_json(receipt_raw)
-            if (set(preview) != {"schema_version", "draft", "binding"}
+            # Legacy drafts remain readable for exact receipt reconciliation.
+            if (set(preview) not in (LEGACY_PREVIEW_KEYS, PREVIEW_KEYS)
                     or type(preview["schema_version"]) is not int or preview["schema_version"] != VERSION
                     or preview["draft"] != normalize_draft(preview["draft"])
                     or set(preview["binding"]) != {"release_sha256", "corpus_sha256", "fixture_sha256"}
@@ -162,7 +170,7 @@ class DraftService:
 
     def save(self, value: object) -> dict:
         request_id, preview_sha256, draft = _save_input(value)
-        if not self._path.exists() and fingerprint(_preview_payload(draft)) != preview_sha256:
+        if not self._path.exists() and fingerprint(self._current_preview(draft)) != preview_sha256:
             raise DraftConflict("Draft preview is stale or does not match its inputs")
         with closing(sqlite3.connect(self._path, timeout=3)) as db, db:
             db.execute("BEGIN IMMEDIATE")
@@ -170,7 +178,7 @@ class DraftService:
             stored = self._stored(db, request_id)
             if stored is not None:
                 return self._same_request(stored, preview_sha256, draft)
-            preview = _preview_payload(draft)
+            preview = self._current_preview(draft)
             if fingerprint(preview) != preview_sha256:
                 raise DraftConflict("Draft preview is stale or does not match its inputs")
             receipt = _receipt(request_id, preview_sha256)
@@ -187,7 +195,8 @@ class DraftService:
         if stored_digest != preview_sha256:
             raise DraftUnavailable("Draft unavailable")
         case = preview["draft"]["case"]
-        ready = fingerprint(_preview_payload(preview["draft"])) == stored_digest
+        ready = (release_fingerprint() == self._release_sha256
+                 and fingerprint(_preview_payload(preview["draft"], self._release_sha256)) == stored_digest)
         response = {"schema_version": VERSION, "request_id": request_id, "preview_sha256": preview_sha256,
                     "status": "ready_for_review" if ready else "stale"}
         if handoff:
@@ -252,9 +261,14 @@ def make_handler(service: DraftService, token: str):
                     actions = {BASE_ROUTE: service.save, f"{BASE_ROUTE}/preview": service.preview,
                                f"{BASE_ROUTE}/receipt": service.receipt}
                     if target in actions:
-                        return self._reply(200, actions[target](self._body()))
+                        body = self._body()
+                        return self._reply(200, actions[target](body))
             except DraftConflict as error:
-                return self._reply(409, {"error": str(error)})
+                rejection = {"error": str(error)}
+                if self.command == "POST" and target == BASE_ROUTE:
+                    request_id, preview_sha256, _ = _save_input(body)
+                    rejection.update(status="not_saved", request_id=request_id, preview_sha256=preview_sha256)
+                return self._reply(409, rejection)
             except DraftUnavailable:
                 pass
             except (OSError, sqlite3.Error):

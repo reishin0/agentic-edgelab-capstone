@@ -19,6 +19,7 @@ TOKEN = "draft-fixture-token-A1b2c3D4e5F6g7H8"
 PATH = "/v1/drafts"
 DRAFT = {"template_id": "cointegration-fixture", "case": "shared-trend", "hypothesis": "The spread is stable."}
 SOURCE = "integrations.advanced_mcp.draft_service.release_fingerprint"
+GATES = "integrations.advanced_mcp.draft_service.METHOD_GATES"
 
 
 class DraftServiceTests(unittest.TestCase):
@@ -37,7 +38,7 @@ class DraftServiceTests(unittest.TestCase):
         with patch("edgelab.stat_tools.synthetic", side_effect=AssertionError("No observation generation")):
             previews = [self.service.preview(draft), self.service.preview({**draft, "hypothesis": "Café meets test."})]
         self.assertEqual(previews[0], previews[1])
-        payload = {key: previews[0][key] for key in ("schema_version", "draft", "binding")}
+        payload = {key: value for key, value in previews[0].items() if key != "preview_sha256"}
         self.assertEqual(previews[0]["preview_sha256"], fingerprint(payload))
         self.assertEqual(previews[0]["status"], "ready_for_review")
         self.assertEqual(previews[0]["scope"], "synthetic in-sample")
@@ -74,9 +75,12 @@ class DraftServiceTests(unittest.TestCase):
     def test_stale_preview_and_handoff_rejected_but_saved_receipt_remains_addressable(self):
         old_request = self._request()
         with patch(SOURCE, return_value="0" * 64):
-            self.assertNotEqual(self.service.preview(DRAFT)["preview_sha256"], old_request["preview_sha256"])
             with self.assertRaises(DraftConflict):
-                self.service.save(old_request)
+                self.service.preview(DRAFT)
+            new_service = DraftService(self.database)
+            self.assertNotEqual(new_service.preview(DRAFT)["preview_sha256"], old_request["preview_sha256"])
+            with self.assertRaises(DraftConflict):
+                new_service.save(old_request)
             self.assertFalse(self.database.exists())
         saved = self.service.save(old_request)
         request_id, digest = old_request["request_id"], old_request["preview_sha256"]
@@ -90,6 +94,32 @@ class DraftServiceTests(unittest.TestCase):
             with self.assertRaises(DraftConflict):
                 self.service.save({**old_request, "request_id": str(uuid4())})
         self.assertEqual(self.database.read_bytes(), bytes_before)
+
+    def test_displayed_method_gates_are_covered_by_the_preview_digest(self):
+        request = self._request()
+        with patch(GATES, ("Updated fixture diagnostics",)):
+            self.assertNotEqual(self.service.preview(DRAFT)["preview_sha256"], request["preview_sha256"])
+            with self.assertRaises(DraftConflict):
+                self.service.save(request)
+
+    def test_legacy_saved_draft_can_be_reconciled_and_requires_a_new_preview_for_handoff(self):
+        self.service.save(self._request())
+        preview = self.service.preview(DRAFT)
+        legacy = {key: preview[key] for key in ("schema_version", "draft", "binding")}
+        digest = fingerprint(legacy)
+        request_id = str(uuid4())
+        receipt = {"schema_version": 1, "status": "saved", "request_id": request_id, "preview_sha256": digest}
+        receipt["receipt_sha256"] = fingerprint(receipt)
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("INSERT INTO drafts VALUES (?,?,?,?)", (request_id, digest, *(
+                json.dumps(value, sort_keys=True, separators=(",", ":")) for value in (legacy, receipt)
+            )))
+        request = {"request_id": request_id, "preview_sha256": digest, "draft": DRAFT}
+        self.assertEqual(self.service.receipt(request), receipt)
+        self.assertEqual(self.service.save(request), receipt)
+        self.assertEqual(self.service.review(request_id, digest)["status"], "stale")
+        with self.assertRaises(DraftConflict):
+            self.service.review(request_id, digest, handoff=True)
 
     def test_concurrent_identical_saves_create_one_receipt(self):
         request = self._request()
@@ -143,6 +173,11 @@ class DraftServiceTests(unittest.TestCase):
                 draft_id = str(uuid4())
                 saved = {"request_id": draft_id, "preview_sha256": digest, "draft": DRAFT}
                 self.assertEqual(request("POST", f"{PATH}/receipt", saved)[0], 404)
+                stale = {**saved, "preview_sha256": "1" * 64}
+                status, rejection = request("POST", PATH, stale)
+                self.assertEqual(status, 409)
+                self.assertEqual(json.loads(rejection), {"status": "not_saved", "request_id": draft_id,
+                    "preview_sha256": "1" * 64, "error": "Draft preview is stale or does not match its inputs"})
                 self.assertFalse(self.database.exists())
                 receipt = request("POST", PATH, saved)
                 self.assertEqual(receipt[0], 200)

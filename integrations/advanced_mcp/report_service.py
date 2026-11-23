@@ -119,7 +119,8 @@ class ReportService:
         fixture_window = asdict(window_for_demo())
         case = data.get("case")
         check_version(protocol.get("version"))
-        if (case not in CASES or data != {"case": case, "seed": SYNTHETIC_SEED, "window": fixture_window}
+        if (case not in CASES or (study_id in CASES and study_id != case)
+                or data != {"case": case, "seed": SYNTHETIC_SEED, "window": fixture_window}
                 or "history" in protocol or any(protocol.get(key) != data[key] for key in data)
                 or report["window"] != fixture_window or report["scope"] != "in-sample research only"
                 or report["holdout"] != "locked and untested"):

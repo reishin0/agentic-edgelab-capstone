@@ -216,17 +216,21 @@ versioned corpus.
 Port from advanced_mcp
 ---------------------
 
-The gateway design separates discovery, input validation and allowlisted
-dispatch. The durable ledger records bound operations before execution and
-does not automatically replay uncertain calls. EdgeLab narrows these
-patterns to its own tools and SQLite ledger. No
-generic code execution, service credentials, write connectors, or external
-gateway processes were copied. To start the optional stdio MCP interface::
+EdgeLab's stdio service uses allowlisted discovery and dispatch. To start
+the optional interface::
 
     .\.venv\Scripts\python.exe -B -m edgelab.mcp_service
 
 The host may bind --run-id RUN_UUID to expose that run's planning trace.
 The interface cannot approve or execute an experiment.
+
+The `bundled Advanced MCP integration <integrations/advanced_mcp/README.md>`_
+runs as a separate authenticated loopback process. Its report profile reads
+pinned synthetic studies. Its draft profile binds operator approval to the
+exact save operation and reconciles uncertain saves against backend receipts
+before resuming. The draft and workflow stores are separate from EdgeLab's
+scientific journal, and the scientific handoff uses the normal CLI approval
+path.
 
 Source API TODOs
 ----------------

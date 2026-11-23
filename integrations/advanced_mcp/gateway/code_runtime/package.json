@@ -1,0 +1,13 @@
+{
+  "name": "advanced-mcp-code-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "QuickJS WebAssembly executor for the local Code Mode interface",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "quickjs-emscripten": "0.32.0"
+  }
+}

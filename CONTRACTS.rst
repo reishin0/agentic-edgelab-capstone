@@ -27,9 +27,12 @@ Permission model
 ----------------
 
 The local OS operator owns the CLI, journals, and subprocess configuration.
-An approval digest binds a plan; it is not an identity credential. MCP is
-local stdio, not an authenticated multi-user service. A trusted host must
-choose the journal and run; do not expose this interface on a network.
+An approval digest binds a plan. A trusted host chooses the journal and run
+for EdgeLab's local stdio MCP interface. Keep that interface local. The
+separate authenticated Advanced MCP gateway uses caller roles and individual
+workflow ownership for synthetic draft approval and recovery. Its operator
+decision covers the exact draft save. The scientific CLI requires separate
+protocol approval.
 Local hashes verify bindings and detect tested inconsistencies; they do
 not protect against an operator who can replace the entire trusted ledger.
 No holdout is opened by this release.
