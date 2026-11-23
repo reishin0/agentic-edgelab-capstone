@@ -11,16 +11,29 @@
 <body>
   <header class="bar">
     <div class="shell top">
-      <a class="brand" href="#"><span class="mark" aria-hidden="true">E</span> EdgeLab</a>
-      <nav aria-label="Research views">
-        <a href="#overview">Overview</a><a href="#leaderboard">Pairs</a><a href="#trace">Run trace</a><a href="#evidence">Evidence</a><a href="#etf-entry-costs" id="etf-entry-nav" hidden>ETF costs</a><a href="#synthetic-stability">Stability study</a><a href="#waitlist">Waitlist</a><a href="#checkpoints">Checkpoints</a>
-      </nav>
+      <a class="brand" id="dashboard-home" href="#overview"><span class="mark" aria-hidden="true">E</span> EdgeLab</a>
+      <div class="controls">
+        <label for="run-select">Run</label><select id="run-select" disabled><option>Loading runs</option></select>
+        <button id="refresh" title="Refresh local evidence" aria-label="Refresh local evidence">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.2 7a7 7 0 0 1 12-1L20 12M4 12l1.8 6a7 7 0 0 0 12-1"/></svg>
+        </button>
+      </div>
       <div class="header-actions">
         <span class="status"><i></i> Local read-only</span>
         <button type="button" id="open-settings" class="settings-button" aria-haspopup="dialog"
                 aria-controls="research-settings">Settings</button>
       </div>
     </div>
+    <nav class="shell view-nav" id="view-nav" aria-label="Research views">
+      <a href="#overview" aria-current="page">Overview</a>
+      <a href="#leaderboard">Pairs</a>
+      <a href="#trace">Run trace</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#etf-entry-costs" id="etf-entry-nav" hidden>ETF costs</a>
+      <a href="#synthetic-stability">Stability study</a>
+      <a href="#waitlist">Waitlist</a>
+      <a href="#checkpoints">Checkpoints</a>
+    </nav>
   </header>
   <dialog id="research-settings" class="settings-dialog" aria-labelledby="settings-title">
     <div class="settings-heading">
@@ -77,18 +90,17 @@
       </div>
     </section>
   </dialog>
-  <main class="shell">
-    <section id="overview">
-      <div class="intro">
-        <div><div class="eyebrow">Research operations</div><h1>Relationship monitor</h1></div>
-        <div class="controls">
-          <label for="run-select">Run</label><select id="run-select" disabled><option>Loading runs</option></select>
-          <button id="refresh" title="Refresh local evidence" aria-label="Refresh local evidence">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.2 7a7 7 0 0 1 12-1L20 12M4 12l1.8 6a7 7 0 0 0 12-1"/></svg>
-          </button>
-        </div>
-      </div>
-      <p id="load-error" class="alert" role="alert" hidden></p>
+  <main id="view-content" tabindex="0">
+    <p id="load-error" class="alert" role="alert" hidden></p>
+    <section id="overview" data-view aria-labelledby="overview-title" tabindex="-1">
+      <p class="liability-notice">
+        <strong>Liability disclaimer</strong>
+        EdgeLab provides information for research and education only. You are responsible for any
+        investment decisions you make. To the extent permitted by applicable law, EdgeLab&rsquo;s authors
+        and contributors disclaim liability for losses arising from use of or reliance on this dashboard
+        or its outputs.
+      </p>
+      <div class="intro"><div class="eyebrow">Research operations</div><h1 id="overview-title">Relationship monitor</h1></div>
       <article id="outcome" class="panel outcome" aria-label="Recorded research outcome" aria-live="polite" hidden></article>
       <div id="metrics" class="metrics" aria-label="Run summary"></div>
       <article id="lag-panel" class="panel wide" aria-labelledby="lag-title" hidden>
@@ -109,20 +121,24 @@
         <div><span>04 / REPORT</span><strong>Reporter</strong><small>Recorded verdict &middot; evidence references</small></div>
       </div>
       <div id="providers" class="providers" aria-label="Provider status"></div>
+      <section id="news" aria-labelledby="news-title">
+        <div class="section-head"><h2 id="news-title">Market news</h2><span>Context only &middot; excluded from decisions</span></div>
+        <article class="panel"><div class="panel-head"><h3>Headline snapshot</h3><span id="news-state"></span></div><div id="headlines"></div></article>
+      </section>
     </section>
-    <section id="leaderboard" aria-labelledby="leaderboard-title">
+    <section id="leaderboard" data-view aria-labelledby="leaderboard-title" tabindex="-1" hidden>
       <div class="section-head"><h2 id="leaderboard-title">Pair leaderboard</h2><span id="leaderboard-state"></span></div>
       <div id="leaderboard-groups" class="leaderboard-groups"></div>
     </section>
-    <section id="evidence">
-      <div class="section-head"><h2>Research evidence</h2><span id="window"></span></div>
+    <section id="evidence" data-view aria-labelledby="evidence-title" tabindex="-1" hidden>
+      <div class="section-head"><h2 id="evidence-title">Research evidence</h2><span id="window"></span></div>
       <div class="split">
         <article class="panel"><div class="panel-head"><h3>Approved series</h3><span class="legend"><b class="a"></b> A <b class="b"></b> B</span></div><div id="series" class="plot"></div></article>
         <article class="panel"><div class="panel-head"><h3>Fitted spread</h3><span>A on B &middot; OLS residual</span></div><div id="spread" class="plot"></div></article>
       </div>
       <article class="panel wide"><div class="panel-head"><h3>Statistical diagnostics</h3><span>Declared threshold &alpha; = 0.05</span></div><div id="stats"></div></article>
     </section>
-    <section id="etf-entry-costs" aria-labelledby="etf-entry-title" hidden>
+    <section id="etf-entry-costs" data-view aria-labelledby="etf-entry-title" tabindex="-1" hidden>
       <div class="section-head">
         <h2 id="etf-entry-title">ETF entry costs</h2>
         <button type="button" id="etf-entry-tip" class="etf-tip-button" aria-haspopup="dialog"
@@ -158,12 +174,12 @@
         <button type="button" id="etf-tip-close" class="etf-tip-button">Close</button>
       </dialog>
     </section>
-    <section id="synthetic-stability" aria-labelledby="stability-title">
+    <section id="synthetic-stability" data-view aria-labelledby="stability-title" tabindex="-1" hidden>
       <div class="section-head"><h2 id="stability-title">Synthetic stability study</h2><span id="stability-state" aria-live="polite"></span></div>
       <div id="stability-results"></div>
     </section>
-    <section id="trace">
-      <div class="section-head"><h2>Reason &rarr; Act &rarr; Observe &rarr; Review</h2><span>Recorded decisions, not private reasoning</span></div>
+    <section id="trace" data-view aria-labelledby="trace-title" tabindex="-1" hidden>
+      <div class="section-head"><h2 id="trace-title">Reason &rarr; Act &rarr; Observe &rarr; Review</h2><span>Recorded decisions, not private reasoning</span></div>
       <div id="decision" class="decision"></div>
       <div class="split">
         <article class="panel"><div class="panel-head"><h3>Tool and decision ledger</h3><span>Append order</span></div><div id="events"></div></article>
@@ -171,12 +187,8 @@
       </div>
       <article class="panel wide"><div class="panel-head"><h3>Method evidence</h3><span>Versioned public sources</span></div><div id="methods"></div></article>
     </section>
-    <section id="news">
-      <div class="section-head"><h2>Market news</h2><span>Context only &middot; excluded from decisions</span></div>
-      <article class="panel"><div class="panel-head"><h3>Headline snapshot</h3><span id="news-state"></span></div><div id="headlines"></div></article>
-    </section>
-    <section id="waitlist">
-      <div class="section-head"><h2>Asset waitlists</h2><span id="waitlist-state">No stock waitlist loaded</span></div>
+    <section id="waitlist" data-view aria-labelledby="waitlist-title" tabindex="-1" hidden>
+      <div class="section-head"><h2 id="waitlist-title">Asset waitlists</h2><span id="waitlist-state">No stock waitlist loaded</span></div>
       <article class="panel">
         <div class="panel-head waitlist-head">
           <div id="waitlist-source">Local research universe</div>
@@ -191,10 +203,10 @@
           </div>
         </div>
       </article>
+      <section id="cross-assets" class="split wide" aria-label="FX and crypto waitlists" hidden></section>
     </section>
-    <section id="cross-assets" class="split wide" aria-label="FX and crypto waitlists" hidden></section>
-    <section id="checkpoints">
-      <div class="section-head"><h2>Checkpoint coverage</h2><span>Design vs. implementation</span></div>
+    <section id="checkpoints" data-view aria-labelledby="checkpoints-title" tabindex="-1" hidden>
+      <div class="section-head"><h2 id="checkpoints-title">Checkpoint coverage</h2><span>Design vs. implementation</span></div>
       <div class="panel coverage">
         <div><b>1.1</b><h3>Local architecture</h3><p>LM Studio is the default adviser in Settings. Planner advice is optional. The controller and its Critic apply deterministic evidence rules.</p></div>
         <div><b>2.1</b><h3>Research loop</h3><p>Approval, typed tools, milestone review and durable evidence. Holdout evaluation, Johansen/Gregory–Hansen and cloud fallback are not enabled.</p></div>

@@ -26,6 +26,8 @@ class ModelCatalog(TypedDict):
     status: str
     models: list[dict]
     loaded_ids: NotRequired[list[str]]
+    preferred_model: NotRequired[str | None]
+    default_configured: NotRequired[bool]
     downloaded: NotRequired[list[dict]]
     models_directory: NotRequired[str | None]
     free_only: NotRequired[bool]
@@ -121,7 +123,9 @@ def local_catalog(settings: Mapping[str, str], *, allow_provider_io: bool = Fals
                   transport: GetTransport = get_json, home: Path | None = None) -> ModelCatalog:
     """Keep on-disk downloads distinct from service-authoritative loaded IDs."""
     root = _models_directory(settings, Path.home() if home is None else home)
+    preferred = settings.get("LM_STUDIO_PLANNER_MODEL")
     catalog: ModelCatalog = {"provider": "lm_studio", "status": "disabled", "models": [], "loaded_ids": [],
+                             "default_configured": bool(preferred), "preferred_model": None,
                              "downloaded": _downloaded_models(root), "models_directory": str(root) if root else None}
     if allow_provider_io is True:
         base = lm_url(settings.get("LM_STUDIO_BASE_URL") or LM_STUDIO_DEFAULT)
@@ -133,7 +137,9 @@ def local_catalog(settings: Mapping[str, str], *, allow_provider_io: bool = Fals
         else:
             catalog["status"] = "available"
             catalog["models"] = models
-            catalog["loaded_ids"] = [row["id"] for row in models if row["loaded"]]
+            loaded = [row["id"] for row in models if row["loaded"]]
+            catalog["loaded_ids"] = loaded
+            catalog["preferred_model"] = preferred if preferred in loaded else None
     return catalog
 
 
@@ -285,8 +291,7 @@ def test_model(settings: Mapping[str, str], provider: str, model_id: str, *, all
         catalog = local_catalog(settings, allow_provider_io=True, transport=catalog_transport, home=home)
         if model_id not in catalog["loaded_ids"]:
             raise ProviderError("LM Studio model is not currently loaded")
-        adviser = LMStudio(settings.get("LM_STUDIO_BASE_URL") or LM_STUDIO_DEFAULT,
-                           {"planner": model_id}, settings.get("LM_STUDIO_API_KEY", ""), transport)
+        adviser = LMStudio.from_settings(settings, planner_model=model_id, transport=transport)
     elif provider == "openrouter":
         adviser = openrouter_adviser(settings, model_id, allow_provider_io=True, free_only=free_only,
                                      catalog_transport=catalog_transport, transport=transport)

@@ -52,6 +52,9 @@ def build_graph(service: ResearchService, retrieve: Callable[[str], tuple[Note, 
         result["retrieval_observation"] = ("provider_error" if state.get("retrieval_error") else "completed")
         if adviser_provider is not None:
             result["adviser_provider"] = adviser_provider
+        profile = getattr(model, "planner_profile", "")
+        if isinstance(profile, str) and profile:
+            result["planner_profile"] = profile
         if isinstance(model, CrewRoles):
             result["role_backend"] = "crewai"
         return {"search_result": result}

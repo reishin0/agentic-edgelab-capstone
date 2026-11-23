@@ -44,6 +44,7 @@
       flags.push(kind === "lm_studio" ? "--lm-studio" : "--openrouter", "--model-id", `'${id}'`);
       if (kind === "openrouter" && !free.checked) flags.push("--allow-paid-model");
     }
+    if (kind === "none") flags.push("--no-model");
     if (source.value === "pinecone") flags.push("--retrieval", "pinecone");
     const needsProviders = kind !== "none" || source.value === "pinecone";
     if (needsProviders) flags.push("--allow-provider-io");
@@ -108,9 +109,14 @@
         models.push(...(result.downloaded || []).filter(row => !keys.has(row.model_key))
           .map(row => ({id: row.file, name: row.file.split("/").at(-1), loaded: false})));
         const loaded = models.filter(row => row.loaded);
-        if (!selected[kind] && loaded.length === 1) selected[kind] = loaded[0].id;
+        if (!loaded.some(row => row.id === selected[kind])) {
+          selected[kind] = result.preferred_model ?? (!result.default_configured && loaded.length === 1 ? loaded[0].id : "");
+        }
         modelStatus.textContent = loaded.length ? `${loaded.length} loaded model(s).` :
           "Load a model in LM Studio and start its local server, then refresh.";
+        if (result.default_configured && !result.preferred_model && !selected[kind]) {
+          modelStatus.textContent = "The configured default is unavailable. Load it in LM Studio and refresh.";
+        }
       } else {
         modelStatus.textContent = result.status === "not_configured" ? "Set OPENROUTER_API_KEY in providers.env." :
           result.status !== "available" ? "The OpenRouter catalog could not be read." : `${models.length} compatible model(s).`;

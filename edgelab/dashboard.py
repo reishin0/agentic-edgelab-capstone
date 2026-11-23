@@ -32,7 +32,6 @@ from .waitlist import load_waitlist
 
 
 JOURNAL_PATH = ROOT / "runtime" / "edgelab.sqlite"
-PROVIDER_SETTINGS_PATH = ROOT / "providers.env"
 LOG = logging.getLogger(__name__)
 ASSETS = {"/": ("index.html", "text/html"), "/ui.css": ("ui.css", "text/css"),
           "/ui.js": ("ui.js", "text/javascript"), "/settings.js": ("settings.js", "text/javascript")}
@@ -136,7 +135,7 @@ def run_view(journal: Journal, run_id: str, history: FrozenHistory | None = None
             "chart": sample_chart(approval, results, history) if approval and results else None}
 
 
-def configuration(env: Path) -> dict:
+def configuration(env: Path, *, planner_env: Path | None = None) -> dict:
     try:
         settings = read_env(env) if env.is_file() else {}
     except (ValueError, OSError):
@@ -156,7 +155,17 @@ def configuration(env: Path) -> dict:
     except ValueError:
         pine = "Invalid configuration"
     news = "Configured" if all(settings.get(key) for key in ("EDGELAB_NEWS_KEY", "EDGELAB_NEWS_SECRET")) else "Not configured"
-    return {"lm_studio": lm, "pinecone": pine, "news": news}
+    status = {"lm_studio": lm, "pinecone": pine, "news": news}
+    if planner_env is not None and planner_env.is_file():
+        try:
+            planner_settings = read_env(planner_env)
+            if planner_settings.get("LM_STUDIO_AUTO_USE") == "1":
+                model = LMStudio.from_settings(planner_settings).models["planner"]
+                if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/@:+-]{0,199}", model):
+                    status["default_planner"] = model
+        except (OSError, ValueError):
+            status["lm_studio"] = "Invalid configuration"
+    return status
 
 
 def news_view(path: Path, *, demo: bool = False) -> dict:
@@ -228,7 +237,8 @@ def handler(journal_paths: tuple[Path, ...], news_path: Path, env: Path, demo: b
             waitlist: dict | None = None, cross_assets: dict | None = None,
             leaderboard: dict | None = None, *, live_leaderboard: Path | None = None,
             stability_path: Path | None = None, etf_entry_costs_path: Path | None = None,
-            provider_settings_path: Path = PROVIDER_SETTINGS_PATH):
+            provider_settings_path: Path | None = None):
+    provider_settings_path = provider_settings_path or env.with_name("providers.env")
     paths = tuple(path.resolve() for path in journal_paths)
     history_by_hash = {history.manifest_sha256: history for history in histories}
     if len(paths) != len(set(paths)) or len(histories) != len(history_by_hash):
@@ -298,7 +308,7 @@ def handler(journal_paths: tuple[Path, ...], news_path: Path, env: Path, demo: b
                     return self.reply(200, media, files("edgelab").joinpath("web", name).read_bytes())
                 if target.path == "/api/runs":
                     config = (dict.fromkeys(("lm_studio", "pinecone", "news"), "Disabled in demo")
-                              if demo else configuration(env))
+                              if demo else configuration(env, planner_env=provider_settings_path))
                     runs = [run for journal in journals for run in recent_runs(journal)]
                     if len({run["id"] for run in runs}) != len(runs):
                         raise JournalConflict("Run ID occurs in multiple journals")

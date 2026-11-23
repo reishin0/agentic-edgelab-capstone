@@ -290,8 +290,10 @@ The server binds only to loopback, has no write/approval
 API, and does not contact providers. Keep it local; it is not a multi-user
 service. The demo uses a temporary journal and never touches an existing run.
 The optional ETF entry-cost panel accepts a pinned aggregate result through
-``--etf-entry-costs PATH_TO_RESULT.json`` in read-only mode. The local operator supplies
-the result separately. Synthetic demo mode omits the panel.
+``--etf-entry-costs PATH_TO_RESULT.json`` in read-only mode. The operator
+supplies the result separately. The dashboard verifies the result hash and
+displays aggregate modeled buy costs with a newcomer Tip. Synthetic demo mode
+omits the panel.
 For assessment from a clean clone, install the research extra with
 ``python -m pip install -e ".[research]"``, then run
 ``python -B -m edgelab.dashboard --demo`` from this folder. Demo mode does not

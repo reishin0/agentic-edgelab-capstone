@@ -337,9 +337,11 @@ function show(run, cfg, demo) {
   const observedLM = modelDecisions ? modelDecisions + " structured decision(s) recorded" :
     plan?.model_attempts ? "Attempted; no structured decision" : "No model decision in selected run";
   const modelName = plan?.role_models?.planner;
+  const modelDetail = plan?.adviser_provider ?
+    (plan.adviser_provider === "openrouter" ? "OpenRouter" : "LM Studio") + " · " + observedLM : observedLM;
   group("providers", [
-    ["Planner model", modelName || "No model recorded", plan?.adviser_provider ?
-      (plan.adviser_provider === "openrouter" ? "OpenRouter" : "LM Studio") + " · " + observedLM : observedLM],
+    ["Planner model", modelName || "No model recorded", cfg.default_planner ?
+      modelDetail + " · Default for new plans: " + cfg.default_planner : modelDetail],
     ["Pinecone", cfg.pinecone, observedPine],
     ["MCP interface", "Host-bound", "Tool catalog and planning trace; no dashboard calls"],
     ["News credentials", cfg.news, "Dashboard reads only the local cache"]
@@ -360,6 +362,42 @@ async function api(path) {
   if (!response.ok) throw new Error("Could not read local evidence (HTTP " + response.status + ").");
   return response.json();
 }
+
+const viewContent = $("view-content");
+const viewLinks = Array.from($("view-nav").querySelectorAll("a"));
+const viewPanels = viewContent.querySelectorAll("[data-view]");
+let activeView;
+
+function showView(moveFocus = false) {
+  const target = $(location.hash.slice(1))?.closest("[data-view]");
+  const current = viewLinks.find(link => !link.hidden && link.hash === `#${target?.id}`) ?? viewLinks[0];
+  const view = $(current.hash.slice(1));
+  if (view === activeView && !moveFocus) return;
+
+  const focusWasInView = activeView?.contains(document.activeElement);
+  for (const panel of viewPanels) panel.hidden = panel !== view;
+  for (const link of viewLinks) {
+    if (link === current) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+  activeView = view;
+  viewContent.scrollTop = 0;
+  if (moveFocus || focusWasInView) view.focus({preventScroll: true});
+}
+
+for (const link of [$("dashboard-home"), ...viewLinks]) {
+  link.addEventListener("click", event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (location.hash !== link.hash) history.pushState(null, "", link.hash);
+    showView(true);
+  });
+}
+
+history.scrollRestoration = "manual";
+window.addEventListener("popstate", () => showView());
+window.addEventListener("hashchange", () => showView());
+showView();
 
 let pending = 0;
 async function refreshRuns() {
@@ -636,19 +674,20 @@ function renderEtfEntryCosts(study) {
 let etfEntryRequest = 0;
 async function loadEtfEntryCosts() {
   const request = ++etfEntryRequest;
-  const section = $("etf-entry-costs"), nav = $("etf-entry-nav");
+  const nav = $("etf-entry-nav");
+  let available = false;
   try {
     const study = await api("/api/etf-entry-costs");
     if (request !== etfEntryRequest) return;
     if (study?.rows?.length) {
       renderEtfEntryCosts(study);
-      section.hidden = nav.hidden = false;
-      return;
+      available = true;
     }
   } catch {}
   if (request !== etfEntryRequest) return;
-  section.hidden = nav.hidden = true;
-  if ($("etf-entry-dialog").open) $("etf-entry-dialog").close();
+  nav.hidden = !available;
+  if (!available && $("etf-entry-dialog").open) $("etf-entry-dialog").close();
+  showView();
 }
 
 const etfTip = $("etf-entry-dialog");
@@ -665,19 +704,11 @@ $("run-select").addEventListener("change", refreshRuns);
 $("refresh").addEventListener("click", () => {
   refreshRuns(); refreshNews(); loadLeaderboard(); loadStabilityStudy(); loadEtfEntryCosts();
 });
-const initialRun = refreshRuns();
+refreshRuns();
 refreshNews();
 loadWaitlist();
 loadCrossAssets();
-const initialLeaderboard = loadLeaderboard();
+loadLeaderboard();
 loadStabilityStudy();
-const initialEtfCosts = loadEtfEntryCosts();
-if (location.hash === "#etf-entry-costs") {
-  Promise.allSettled([initialRun, initialLeaderboard, initialEtfCosts]).then(() => {
-    const panel = $("etf-entry-costs");
-    if (location.hash === "#etf-entry-costs" && !panel.hidden) {
-      panel.scrollIntoView({block: "start", behavior: "instant"});
-    }
-  });
-}
+loadEtfEntryCosts();
 setInterval(() => { if (!document.hidden) { refreshNews(); loadLeaderboard(); } }, 20000);

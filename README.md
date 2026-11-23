@@ -41,6 +41,28 @@ The [synthetic example output](examples/synthetic-shared-trend.json) shows the m
 
 To exercise the offline suite with the optional components installed, see the dependency and telemetry setup in [deployment](DEPLOYMENT.rst) and run `python -B -m unittest discover -s tests`. For the discovery tests, run `python -B -m unittest discover -s research/pair_discovery` from the repository root. The repository includes the evaluation methods, synthetic inputs in the test harnesses and result summaries.
 
+## Use Ornith in LM Studio
+
+Install the EdgeLab research extra, then copy [providers.env.example](providers.env.example)
+to a new private `providers.env` file. Set `LM_STUDIO_BASE_URL` to your
+local LM Studio API address, including `/v1`. Match `LM_STUDIO_PLANNER_MODEL`
+to the exact loaded instance ID and set `LM_STUDIO_PLANNER_PROFILE=ornith`.
+Set `LM_STUDIO_AUTO_USE=1` to use that model by default for new CLI plans.
+
+EdgeLab uses LM Studio's model chat template and asks for one allowed choice as
+a JSON object. For `ornith-1.5-35b-a3b-q4-k-m`, the Planner profile sets
+temperature 0.6, top-p 0.95, top-k 20, reasoning off, and a 128-token output
+limit. These settings apply to EdgeLab's Planner requests.
+
+```sh
+python -B -m edgelab.capstone --journal runtime/ornith-demo.sqlite plan --case shared-trend
+```
+
+Add `--no-model` to disable model advice. The dashboard's **Settings**
+offers explicit diagnostics for LM Studio, the OpenRouter account catalog,
+and Pinecone retrieval. See [deployment](DEPLOYMENT.rst) for configuration
+and provider access.
+
 ## Evaluation
 
 | Study | Observed result |

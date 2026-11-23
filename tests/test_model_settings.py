@@ -61,11 +61,14 @@ class ModelSettingsTests(unittest.TestCase):
         fallback = self.home / ".cache/lm-studio/models"
         fallback.mkdir(parents=True)
         fetch = Mock(return_value=local_response())
-        settings = {"LM_STUDIO_BASE_URL": "http://127.0.0.1:8765/v1", "LM_STUDIO_API_KEY": "fake-local-token"}
+        settings = {"LM_STUDIO_BASE_URL": "http://127.0.0.1:8765/v1", "LM_STUDIO_API_KEY": "fake-local-token",
+                    "LM_STUDIO_PLANNER_MODEL": "selected-alias"}
         catalog = local_catalog(settings, home=self.home, allow_provider_io=True, transport=fetch)
         self.assertEqual(catalog["models_directory"], str(fallback))
         self.assertEqual(catalog["status"], "available")
         self.assertEqual(catalog["loaded_ids"], ["other-alias", "selected-alias"])
+        self.assertEqual(catalog["preferred_model"], "selected-alias")
+        self.assertTrue(catalog["default_configured"])
         models = {row["id"]: row for row in catalog["models"]}
         self.assertEqual(set(models), {"other-alias", "selected-alias", "example/downloaded"})
         self.assertEqual(models["selected-alias"]["model_key"], "example/stored")

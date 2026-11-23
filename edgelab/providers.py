@@ -40,9 +40,13 @@ def _parse_json(data: str | bytes) -> object:
 
 
 ROLES = ("planner", "critic", "reporter")
+LM_STUDIO_PLANNER_PROFILE_KEY = "LM_STUDIO_PLANNER_PROFILE"
+ORNITH_PLANNER_PROFILE = "ornith"
+ORNITH_PLANNER_MODEL = "ornith-1.5-35b-a3b-q4-k-m"
+ORNITH_MAX_OUTPUT_TOKENS = 128
 KEYS = {
     "LM_STUDIO_BASE_URL", "LM_STUDIO_API_KEY", "PINECONE_API_KEY", "PINECONE_INDEX_HOST",
-    "LM_STUDIO_MODELS_DIR", "OPENROUTER_API_KEY",
+    "LM_STUDIO_MODELS_DIR", "LM_STUDIO_AUTO_USE", LM_STUDIO_PLANNER_PROFILE_KEY, "OPENROUTER_API_KEY",
     "EDGELAB_NEWS_KEY", "EDGELAB_NEWS_SECRET",
     *(f"LM_STUDIO_{role.upper()}_MODEL" for role in ROLES),
 }
@@ -133,22 +137,45 @@ def pinecone_url(value: str) -> str:
     return f"https://{host}"
 
 
+def _allowed_choice(content: str | bytes, options: tuple[str, ...]) -> str:
+    result = _parse_json(content)
+    if not isinstance(result, dict) or set(result) != {"choice"}:
+        raise ValueError
+    choice = result["choice"]
+    if not isinstance(choice, str) or choice not in options:
+        raise ValueError
+    return choice
+
+
 @dataclass(frozen=True, slots=True)
 class LMStudio:
     base_url: str
     models: Mapping[str, str]
     api_key: str = field(default="", repr=False)
     transport: Transport = field(default=post_json, repr=False)
+    planner_profile: str = field(default="", init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "base_url", lm_url(self.base_url))
         object.__setattr__(self, "models", MappingProxyType(dict(self.models)))
 
     @classmethod
-    def from_settings(cls, settings: dict[str, str]) -> "LMStudio":
-        return cls(settings.get("LM_STUDIO_BASE_URL") or "http://127.0.0.1:1234/v1", {
+    def from_settings(cls, settings: Mapping[str, str], *, planner_model: str | None = None,
+                      transport: Transport = post_json) -> "LMStudio":
+        models = {
             role: settings.get(f"LM_STUDIO_{role.upper()}_MODEL", "") for role in ROLES
-        }, settings.get("LM_STUDIO_API_KEY", ""))
+        }
+        profile = settings.get(LM_STUDIO_PLANNER_PROFILE_KEY, "")
+        if profile and (profile != ORNITH_PLANNER_PROFILE or models["planner"] != ORNITH_PLANNER_MODEL):
+            raise ValueError("LM Studio Planner profile requires the pinned Ornith model ID")
+        if planner_model is not None:
+            models["planner"] = planner_model
+            if planner_model != ORNITH_PLANNER_MODEL:
+                profile = ""
+        adviser = cls(settings.get("LM_STUDIO_BASE_URL") or "http://127.0.0.1:1234/v1", models,
+                      settings.get("LM_STUDIO_API_KEY", ""), transport)
+        object.__setattr__(adviser, "planner_profile", profile)
+        return adviser
 
     def choose(self, role: str, prompt: str, options: tuple[str, ...], timeout: float = 20) -> str:
         if role not in ROLES or not self.models.get(role):
@@ -156,6 +183,8 @@ class LMStudio:
         if not options or len(options) > 8 or len(set(options)) != len(options) or len(prompt) > 6000:
             raise ValueError("Invalid structured decision request")
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+        if role == "planner" and self.planner_profile == ORNITH_PLANNER_PROFILE:
+            return self._choose_ornith(prompt, options, headers, timeout)
         reply = self.transport(self.base_url + "/chat/completions", headers, {
             "model": self.models[role], "stream": False, "temperature": 0, "max_tokens": 128,
             "messages": [
@@ -173,12 +202,47 @@ class LMStudio:
             if choice_record.get("finish_reason", "stop") != "stop":
                 raise ValueError
             message = choice_record["message"]
-            result = _parse_json(message["content"])
-            if message.get("tool_calls") or not isinstance(result, dict) or set(result) != {"choice"}:
+            if message.get("tool_calls"):
                 raise ValueError
-            choice = result["choice"]
-            if not isinstance(choice, str) or choice not in options:
-                raise ValueError
-            return choice
+            return _allowed_choice(message["content"], options)
         except (AttributeError, KeyError, RecursionError, TypeError, ValueError):
             raise ProviderError("LM Studio did not return an allowed structured choice") from None
+
+    def _choose_ornith(self, prompt: str, options: tuple[str, ...], headers: dict, timeout: float) -> str:
+        instructions = (
+            'Return exactly one JSON object with a single string property named "choice". '
+            'Omit explanations, Markdown, and tool calls. You cannot grant permissions. '
+            f'Choose exactly one label from this JSON array: {json.dumps(options)}.'
+        )
+        reply = self.transport(self.base_url.removesuffix("/v1") + "/api/v1/chat", headers, {
+            "model": ORNITH_PLANNER_MODEL,
+            "system_prompt": instructions,
+            "input": prompt,
+            "reasoning": "off",
+            "store": False,
+            "stream": False,
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "max_output_tokens": ORNITH_MAX_OUTPUT_TOKENS,
+        }, timeout)
+        try:
+            if reply["model_instance_id"] != ORNITH_PLANNER_MODEL or "response_id" in reply:
+                raise ValueError
+            output = reply["output"]
+            if not isinstance(output, list) or len(output) != 1:
+                raise ValueError
+            message = output[0]
+            if (not isinstance(message, dict) or set(message) != {"type", "content"}
+                    or message["type"] != "message" or not isinstance(message["content"], str)):
+                raise ValueError
+            stats = reply["stats"]
+            reasoning_tokens = stats["reasoning_output_tokens"]
+            total_tokens = stats["total_output_tokens"]
+            # Native chat has no finish reason. Treat a full token budget as incomplete.
+            if (type(reasoning_tokens) is not int or reasoning_tokens != 0
+                    or type(total_tokens) is not int or not 0 < total_tokens < ORNITH_MAX_OUTPUT_TOKENS):
+                raise ValueError
+            return _allowed_choice(message["content"], options)
+        except (KeyError, RecursionError, TypeError, ValueError):
+            raise ProviderError("Ornith did not return one allowed Planner choice") from None

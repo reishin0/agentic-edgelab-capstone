@@ -58,6 +58,20 @@ lists downloaded GGUF files and uses the loopback catalog to identify loaded
 model IDs. Load the chosen model in LM Studio before selecting it in EdgeLab.
 **Run without model advice** uses the deterministic Planner.
 
+For a local Planner default, set ``LM_STUDIO_AUTO_USE=1`` and an exact
+``LM_STUDIO_PLANNER_MODEL`` in the project's private ``providers.env``.
+A new ``capstone plan`` checks that this instance is already loaded.
+Use ``capstone plan --no-model`` to disable model advice. The dashboard
+uses the configured model as the default in its model list.
+
+The optional ``LM_STUDIO_PLANNER_PROFILE=ornith`` applies to
+``ornith-1.5-35b-a3b-q4-k-m``. EdgeLab uses LM Studio's model template,
+turns reasoning off for its own Planner requests, and checks the resulting
+JSON choice against the allowed labels. The profile uses temperature 0.6,
+top-p 0.95, top-k 20, and at most 128 output tokens. Keep this profile in
+EdgeLab's private settings. Model loading and server defaults are managed
+separately in LM Studio.
+
 Use an ignored ``providers.env`` file in the checkout for optional provider
 configuration. Supported keys include ``LM_STUDIO_MODELS_DIR`` for an
 absolute local model folder override, ``LM_STUDIO_BASE_URL`` and

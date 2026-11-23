@@ -113,7 +113,7 @@ class HistoryTests(unittest.TestCase):
             return json.loads(stdout.getvalue())
 
         with patch("edgelab.capstone.JOURNAL_PATH", self.journal.path):
-            plan = invoke("plan", "--history-manifest", str(self.manifest))
+            plan = invoke("plan", "--no-model", "--history-manifest", str(self.manifest))
             run = plan["run_id"]
             packet = invoke("execute", "--run", run, "--approve", plan["candidates"][0]["digest"],
                             "--history-manifest", str(self.manifest))

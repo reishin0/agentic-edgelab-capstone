@@ -22,14 +22,15 @@ from .stat_tools import CASES
 
 ROOT = Path(__file__).resolve().parent.parent
 JOURNAL_PATH = ROOT / "runtime" / "edgelab.sqlite"
+LOCAL_PLANNER_SETTINGS = ROOT / "providers.env"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--journal", type=Path, default=JOURNAL_PATH,
                         help="Use a separate EdgeLab journal for an isolated deployment")
-    parser.add_argument("--settings-file", type=Path, default=ROOT / ".env",
-                        help="Provider configuration; only opened by explicit provider commands")
+    parser.add_argument("--settings-file", type=Path,
+                        help="Choose a private provider configuration file")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("corpus", help="Show the eight public notes and the exact review digest")
     seed = commands.add_parser("seed-pinecone", help="Upsert the reviewed public corpus into an existing index")
@@ -43,6 +44,7 @@ def main() -> None:
     advisers = plan.add_mutually_exclusive_group()
     advisers.add_argument("--lm-studio", action="store_true")
     advisers.add_argument("--openrouter", action="store_true", help="Opt into OpenRouter Planner advice")
+    advisers.add_argument("--no-model", action="store_true", help="Plan without model advice")
     plan.add_argument("--model-id", help="Exact loaded LM Studio or OpenRouter model ID")
     plan.add_argument("--allow-paid-model", action="store_true", help="Opt into paid OpenRouter routes")
     plan.add_argument("--model-critic", action="store_true",
@@ -59,13 +61,14 @@ def main() -> None:
             entry.add_argument("--crewai", action="store_true", help="Add advisory report presentation metadata")
             entry.add_argument("--allow-provider-io", action="store_true")
     args = parser.parse_args()
+    settings_path = args.settings_file or ROOT / ".env"
     try:
         if args.command == "corpus":
             result = {"namespace": NAMESPACE, "sha256": CORPUS_SHA256, "notes": [asdict(note) for note in CORPUS]}
         elif args.command == "seed-pinecone":
             if not args.allow_provider_io:
                 parser.error("Pinecone access requires --allow-provider-io")
-            settings = read_env(args.settings_file)
+            settings = read_env(settings_path)
             pinecone = PineconeMethods(settings.get("PINECONE_INDEX_HOST", ""), settings.get("PINECONE_API_KEY", ""))
             result = {"namespace": NAMESPACE, "upserted": pinecone.seed(args.approve_corpus)}
         else:
@@ -80,7 +83,7 @@ def main() -> None:
                 if args.command == "report" and args.crewai:
                     if not args.allow_provider_io:
                         parser.error("CrewAI reporting requires --allow-provider-io")
-                    model = LMStudio.from_settings(read_env(args.settings_file))
+                    model = LMStudio.from_settings(read_env(settings_path))
                     result = advisory_report(result, CrewRoles(model))
             else:
                 retrieve, model = local_notes, None
@@ -97,21 +100,34 @@ def main() -> None:
                     if args.allow_paid_model and not args.openrouter:
                         parser.error("--allow-paid-model requires --openrouter")
                     use_model_critic = args.model_critic
-                    if args.lm_studio or args.openrouter or args.retrieval == "pinecone":
-                        if not args.allow_provider_io:
-                            parser.error("Provider access requires --allow-provider-io")
-                        settings = read_env(args.settings_file) if args.settings_file.is_file() else {}
+                    explicit_provider = args.lm_studio or args.openrouter or args.retrieval == "pinecone"
+                    if explicit_provider and not args.allow_provider_io:
+                        parser.error("Provider access requires --allow-provider-io")
+                    local_default = False
+                    settings = {}
+                    if not (args.lm_studio or args.openrouter or args.no_model):
+                        default_path = args.settings_file or LOCAL_PLANNER_SETTINGS
+                        if default_path.is_file():
+                            local_settings = read_env(default_path)
+                            if local_settings.get("LM_STUDIO_AUTO_USE") == "1":
+                                local_default = True
+                                settings = local_settings
+                    if explicit_provider and not local_default:
+                        settings = read_env(settings_path) if settings_path.is_file() else {}
+                    if explicit_provider or local_default:
                         if args.retrieval == "pinecone":
                             retrieve = PineconeMethods(
                                 settings.get("PINECONE_INDEX_HOST", ""), settings.get("PINECONE_API_KEY", ""),
                             ).retrieve
-                        if args.lm_studio:
-                            if args.model_id is not None:
+                        if args.lm_studio or local_default:
+                            model = LMStudio.from_settings(settings, planner_model=args.model_id)
+                            if args.model_id is not None or local_default or model.planner_profile:
+                                model_id = model.models.get("planner")
+                                if not model_id:
+                                    parser.error("Configure an exact LM Studio Planner model ID")
                                 catalog = local_catalog(settings, allow_provider_io=True)
-                                if args.model_id not in catalog["loaded_ids"]:
+                                if model_id not in catalog["loaded_ids"]:
                                     parser.error("Load the selected LM Studio model before planning")
-                                settings["LM_STUDIO_PLANNER_MODEL"] = args.model_id
-                            model = LMStudio.from_settings(settings)
                             adviser_provider = "lm_studio"
                             if args.crewai:
                                 model = CrewRoles(model)
