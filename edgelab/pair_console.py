@@ -64,6 +64,7 @@ class _Job:
     candidates: list[dict] = field(default_factory=list)
     verdict: str | None = None
     approval: str | None = None
+    recovery_required: bool = False
 
     def response(self, item: _Input | None) -> dict:
         return {"id": self.id, "state": self.state, "symbols": list(self.symbols),
@@ -73,7 +74,8 @@ class _Job:
 
     def receipt(self) -> dict:
         return {"id": self.id, "symbols": list(self.symbols), "manifest": self.manifest,
-                "state": self.state, "console": self.console, "run_id": self.run_id,
+                "state": "executing" if self.recovery_required else self.state,
+                "console": self.console, "run_id": self.run_id,
                 "approval": self.approval}
 
 
@@ -249,8 +251,9 @@ class PairConsole:
             if recovered is not None:
                 return recovered
             if job.state != "failed":
-                return self._stopped(job, "The console could not verify a finished report after restart. Review the "
-                                          "saved run in the journal before taking action. Execution was not restarted.")
+                stopped = self._stopped(job, "The console could not verify a finished report after restart. Review the "
+                                             "saved run in the journal before taking action. Execution was not restarted.")
+                return replace(stopped, recovery_required=job.state == "executing")
         return job
 
     @staticmethod
@@ -278,9 +281,11 @@ class PairConsole:
                 return recovered
         return job
 
-    def _check_unfinished_reservations(self) -> None:
-        for job in self._jobs.values():
+    def _check_previous_execution(self) -> None:
+        for job in tuple(self._jobs.values()):
             if job.state != "failed" or job.approval is None or job.run_id is None:
+                continue
+            if job.recovery_required and self._recheck(job).state == "complete":
                 continue
             try:
                 events = Journal(self.journal, read_only=True).events(job.run_id)
@@ -290,6 +295,9 @@ class PairConsole:
             if any(key.startswith("reserved:") and "result:" + key[9:] not in keys for key in keys):
                 raise PairConsoleError("A previous approved run has an unresolved tool reservation. "
                                        "Review the saved run before preparing another pair.", 409)
+            if job.recovery_required:
+                raise PairConsoleError("A previous approved execution was interrupted. Review the saved run "
+                                       "before starting another pair in this console journal.", 409)
 
     def bootstrap(self) -> dict:
         with self._lock:
@@ -373,7 +381,7 @@ class PairConsole:
             self._claim()
             if any(job.state in _ACTIVE for job in self._jobs.values()):
                 raise PairConsoleError("Finish or discard the current pair plan before preparing another.", 409)
-            self._check_unfinished_reservations()
+            self._check_previous_execution()
             job = _Job(str(uuid4()), symbols, item.history.manifest_sha256 if item else None,
                        console=[f"Preparing {symbols[0]} / {symbols[1]}."])
             self._save(job)
@@ -403,6 +411,7 @@ class PairConsole:
             if not any(candidate["digest"] == digest for candidate in job.candidates):
                 raise PairConsoleError("Approval must match one displayed protocol digest.")
             self._claim()
+            self._check_previous_execution()
             job = replace(job, state="executing", approval=digest,
                           console=[*job.console, f"Approved {digest} for run {job.run_id}."])
             self._save(job)
@@ -568,4 +577,5 @@ class PairConsole:
         if not candidates and item is not None:
             plan, = (event["value"] for event in output["bundle"]["events"] if event["key"] == "plan")
             candidates = self._verified_candidates(plan, job.run_id, item.history)
-        return replace(job, console=lines, candidates=candidates, verdict=report["verdict"], state="complete")
+        return replace(job, console=lines, candidates=candidates, verdict=report["verdict"], state="complete",
+                       recovery_required=False)

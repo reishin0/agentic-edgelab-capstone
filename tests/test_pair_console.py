@@ -245,6 +245,21 @@ with patch.object(console, "_start"):
                                  cwd=ROOT, capture_output=True, text=True, timeout=20)
         self.assertEqual(process.returncode, 0, process.stderr)
 
+        with patch.object(PairConsole, "_start") as dispatch:
+            restored = self.open_console()
+            with self.assertRaisesRegex(PairConsoleError, "approved execution was interrupted") as blocked:
+                restored.prepare(self.selection)
+            self.assertEqual(blocked.exception.status, 409)
+            with restored._lock:
+                restored._save(restored._find(started["id"]))
+            restored.close()
+
+            reopened = self.open_console()
+            with self.assertRaisesRegex(PairConsoleError, "approved execution was interrupted"):
+                reopened.prepare(self.selection)
+            dispatch.assert_not_called()
+            reopened.close()
+
         class Interrupted(BaseException):
             pass
 

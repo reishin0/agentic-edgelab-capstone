@@ -256,6 +256,13 @@
       showError(recovered ? "" : message);
       if (data === null) {
         uncertainWrite = null;
+        pendingAcknowledgment = null;
+        job = null;
+        pairKey = "";
+        historyVersion++;
+        ready.textContent = "";
+        delete ready.dataset.job;
+        delete ready.dataset.run;
         panel.hidden = true;
         byId("dashboard-mode").textContent = "Local read-only";
         return;
