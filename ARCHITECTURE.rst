@@ -47,7 +47,7 @@ nodes without accessing prices. Current alternatives are deliberately
 narrower than the checkpoint example. MCP's stdio catalog and
 host-bound planning trace do not expose sample values or dispatch
 statistics. Optional CrewAI role tasks and LCEL method retrieval run
-under LangGraph. The `bundled mcp_gateway <integrations/advanced_mcp/README.md>`_
+under LangGraph. The `bundled mcp_gateway <integrations/mcp_gateway/README.md>`_
 adds authenticated synthetic report reads and operator-approved draft saves
 in separate loopback profiles. Reconciliation and resume apply to its scope
 of draft operations and their backend receipts.

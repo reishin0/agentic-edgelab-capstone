@@ -10,10 +10,10 @@ durable:
 auth:
   mode: local_tokens
   tokens:
-    - env: ADVANCED_MCP_EDGELAB_DRAFT_READER_TOKEN
+    - env: MCP_GATEWAY_EDGELAB_DRAFT_READER_TOKEN
       subject: edgelab-draft-reader
       roles: [edgelab-draft-reader]
-    - env: ADVANCED_MCP_EDGELAB_DRAFT_OPERATOR_TOKEN
+    - env: MCP_GATEWAY_EDGELAB_DRAFT_OPERATOR_TOKEN
       subject: edgelab-draft-operator
       roles: [edgelab-draft-reader, edgelab-draft-operator, operator]
 backends:

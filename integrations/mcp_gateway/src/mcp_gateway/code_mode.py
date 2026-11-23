@@ -29,7 +29,7 @@ class ExecutionPaused(CodeModeError):
 
 
 def node_executable():
-    configured = os.environ.get("ADVANCED_MCP_NODE")
+    configured = os.environ.get("MCP_GATEWAY_NODE")
     candidates = [configured, shutil.which("node")]
     profile = os.environ.get("USERPROFILE")
     if profile:
@@ -37,7 +37,7 @@ def node_executable():
     for candidate in candidates:
         if candidate and Path(candidate).is_file():
             return candidate
-    raise CodeModeError("Node.js 20+ is required; set ADVANCED_MCP_NODE or install Node.js")
+    raise CodeModeError("Node.js 20+ is required; set MCP_GATEWAY_NODE or install Node.js")
 
 
 def json_type(schema, depth=0):

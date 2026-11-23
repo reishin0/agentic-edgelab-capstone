@@ -224,7 +224,7 @@ the optional interface::
 The host may bind --run-id RUN_UUID to expose that run's planning trace.
 The interface cannot approve or execute an experiment.
 
-The `bundled mcp_gateway integration <integrations/advanced_mcp/README.md>`_
+The `bundled mcp_gateway integration <integrations/mcp_gateway/README.md>`_
 runs as a separate authenticated loopback process. Its report profile reads
 pinned synthetic studies. Its draft profile binds operator approval to the
 exact save operation and reconciles uncertain saves against backend receipts

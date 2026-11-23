@@ -41,11 +41,11 @@ class Gateway:
         self.connectors = {b.name: create_connector(b) for b in settings.backends}
         self.pools = self.connectors  # Compatibility for existing integrations and tests.
         self.registry = CollectorRegistry()
-        self.calls = Counter("advanced_mcp_tool_calls", "Tool outcomes", ["backend", "outcome"], registry=self.registry)
-        self.latency = Histogram("advanced_mcp_tool_seconds", "Tool latency", ["backend"], registry=self.registry)
-        self.discovery_errors = Counter("advanced_mcp_discovery_failures", "Failed discovery", ["backend"], registry=self.registry)
-        self.http_requests = Counter("advanced_mcp_http_requests", "HTTP outcomes", ["status"], registry=self.registry)
-        self.code_runs = Counter("advanced_mcp_code_runs", "Code Mode execution outcomes", ["mode", "outcome"], registry=self.registry)
+        self.calls = Counter("mcp_gateway_tool_calls", "Tool outcomes", ["backend", "outcome"], registry=self.registry)
+        self.latency = Histogram("mcp_gateway_tool_seconds", "Tool latency", ["backend"], registry=self.registry)
+        self.discovery_errors = Counter("mcp_gateway_discovery_failures", "Failed discovery", ["backend"], registry=self.registry)
+        self.http_requests = Counter("mcp_gateway_http_requests", "HTTP outcomes", ["status"], registry=self.registry)
+        self.code_runs = Counter("mcp_gateway_code_runs", "Code Mode execution outcomes", ["mode", "outcome"], registry=self.registry)
         self.code_surface = None
         self.workflows = None
         if settings.surface == "code":
