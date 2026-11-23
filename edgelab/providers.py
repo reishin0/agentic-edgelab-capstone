@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 from types import MappingProxyType
+from typing import Protocol
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -14,6 +15,13 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 
 class ProviderError(RuntimeError):
     pass
+
+
+class ChoiceAdviser(Protocol):
+    @property
+    def models(self) -> Mapping[str, str]: ...
+
+    def choose(self, role: str, prompt: str, options: tuple[str, ...], timeout: float = 20) -> str: ...
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict:
@@ -34,6 +42,7 @@ def _parse_json(data: str | bytes) -> object:
 ROLES = ("planner", "critic", "reporter")
 KEYS = {
     "LM_STUDIO_BASE_URL", "LM_STUDIO_API_KEY", "PINECONE_API_KEY", "PINECONE_INDEX_HOST",
+    "LM_STUDIO_MODELS_DIR", "OPENROUTER_API_KEY",
     "EDGELAB_NEWS_KEY", "EDGELAB_NEWS_SECRET",
     *(f"LM_STUDIO_{role.upper()}_MODEL" for role in ROLES),
 }
@@ -65,11 +74,17 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+def get_json(url: str, headers: dict, timeout: float) -> dict:
+    return _request_json(Request(url, headers=headers, method="GET"), timeout)
+
+
 def post_json(url: str, headers: dict, payload: dict, timeout: float) -> dict:
-    request = Request(
-        url, data=json.dumps(payload, allow_nan=False).encode("utf-8"),
-        headers={"Content-Type": "application/json", **headers}, method="POST",
-    )
+    request = Request(url, data=json.dumps(payload, allow_nan=False).encode("utf-8"),
+                      headers={"Content-Type": "application/json", **headers}, method="POST")
+    return _request_json(request, timeout)
+
+
+def _request_json(request: Request, timeout: float) -> dict:
     # Never send keys through an environment proxy or across a redirect.
     try:
         with build_opener(ProxyHandler({}), NoRedirect()).open(request, timeout=timeout) as response:

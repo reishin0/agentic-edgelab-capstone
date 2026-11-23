@@ -1,11 +1,14 @@
 """Versioned public-method notes and the Checkpoint 3.1 retrieval pipeline."""
 
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from math import isfinite
+from time import monotonic
+from urllib.parse import urlencode
 
 from .contracts import fingerprint
-from .providers import ProviderError, Transport, pinecone_url, post_json
+from .providers import ProviderError, Transport, get_json, pinecone_url, post_json
 
 
 NAMESPACE = "edgelab-public-methods-v1"
@@ -13,6 +16,7 @@ EMBED = "llama-text-embed-v2"
 RERANK = "bge-reranker-v2-m3"
 DIMENSION = 1024
 INFERENCE = "https://api.pinecone.io"
+REQUIRED_METHOD_IDS = ("adf", "kpss", "eg")
 QUERY = {
     "cointegration": "Engle-Granger I(1) inputs and ADF and KPSS diagnostics on levels and first differences",
     "evaluation": "Factual evidence fidelity and evaluation limitations",
@@ -74,21 +78,28 @@ def _score(value: object) -> float:
     return float(value)
 
 
+def _verified_metadata(note: Note, metadata: object) -> bool:
+    return (isinstance(metadata, dict) and metadata == note.metadata()
+            and all(metadata[flag] is True for flag in ("public", "reviewed", "active")))
+
+
 @dataclass(frozen=True, slots=True)
 class PineconeMethods:
     index_host: str
     api_key: str = field(repr=False)
     transport: Transport = field(default=post_json, repr=False)
+    get_transport: Callable[[str, dict, float], dict] = field(default=get_json, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "index_host", pinecone_url(self.index_host))
         if not self.api_key:
             raise ValueError("PINECONE_API_KEY is required for Pinecone mode")
 
+    def _headers(self) -> dict[str, str]:
+        return {"Api-Key": self.api_key, "X-Pinecone-Api-Version": "2025-10"}
+
     def _post(self, url: str, payload: dict) -> dict:
-        return self.transport(url, {
-            "Api-Key": self.api_key, "X-Pinecone-Api-Version": "2025-10",
-        }, payload, 15)
+        return self.transport(url, self._headers(), payload, 15)
 
     def _vectors(self, texts: list[str], input_type: str) -> list[list[float]]:
         result = self._post(INFERENCE + "/embed", {
@@ -119,6 +130,55 @@ class PineconeMethods:
             raise ProviderError("Pinecone did not confirm the complete upsert")
         return len(CORPUS)
 
+    def required_notes(self) -> tuple[Note, ...]:
+        """Resolve the required cointegration notes by ID without semantic ranking."""
+        query = urlencode({"ids": REQUIRED_METHOD_IDS, "namespace": NAMESPACE}, doseq=True)
+        reply = self.get_transport(f"{self.index_host}/vectors/fetch?{query}", self._headers(), 15)
+        if (not isinstance(reply, dict) or reply.get("namespace") != NAMESPACE
+                or not isinstance(vectors := reply.get("vectors"), dict)
+                or set(vectors) - set(REQUIRED_METHOD_IDS)):
+            raise ProviderError("Pinecone returned invalid required method records")
+        notes = []
+        for method_id in REQUIRED_METHOD_IDS:
+            note = BY_ID[method_id]
+            record = vectors.get(method_id)
+            if (note.topic == "cointegration" and isinstance(record, dict) and record.get("id") == method_id
+                    and _verified_metadata(note, record.get("metadata"))):
+                notes.append(note)
+        return tuple(notes)
+
+    def retrieve(self, topic: str) -> tuple[Note, ...]:
+        """Ground a fixed topic. The required procedure has an exact evidence contract."""
+        if topic == "cointegration":
+            return self.required_notes()
+        return self.search(topic)
+
+    def retrieval_diagnostic(self) -> dict:
+        """Check exact and semantic cointegration retrieval independently with fixed inputs."""
+        started = monotonic()
+        try:
+            verified_ids = [note.id for note in self.required_notes()]
+            required_status = "complete" if len(verified_ids) == len(REQUIRED_METHOD_IDS) else "incomplete"
+        except ProviderError:
+            verified_ids = []
+            required_status = "unavailable"
+        required = {"status": required_status, "verified_ids": verified_ids,
+                    "missing_ids": [method_id for method_id in REQUIRED_METHOD_IDS if method_id not in verified_ids],
+                    "elapsed_ms": round((monotonic() - started) * 1000)}
+
+        started = monotonic()
+        try:
+            note_ids = [note.id for note in self.search("cointegration")]
+            semantic_status = "complete" if note_ids else "empty"
+            recall = len(set(REQUIRED_METHOD_IDS).intersection(note_ids)) / len(REQUIRED_METHOD_IDS)
+        except ProviderError:
+            note_ids = []
+            semantic_status, recall = "unavailable", None
+        return {"topic": "cointegration", "corpus_version": NAMESPACE, "corpus_sha256": CORPUS_SHA256,
+                "required": required,
+                "semantic": {"status": semantic_status, "note_ids": note_ids,
+                             "recall_at_3": recall, "elapsed_ms": round((monotonic() - started) * 1000)}}
+
     def search(self, topic: str) -> tuple[Note, ...]:
         if topic not in QUERY:
             raise ValueError("Only fixed public-method topics may be sent to Pinecone")
@@ -138,8 +198,7 @@ class PineconeMethods:
             for hit in matches:
                 note = BY_ID.get(hit["id"])
                 if (note and note.topic == topic and _score(hit["score"]) >= 0.30
-                        and hit["metadata"] == note.metadata()
-                        and all(hit["metadata"][flag] is True for flag in ("public", "reviewed", "active"))):
+                        and _verified_metadata(note, hit["metadata"])):
                     candidates[note.id] = note
             if not candidates:
                 return ()

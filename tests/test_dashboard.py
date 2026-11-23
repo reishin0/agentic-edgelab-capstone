@@ -1,3 +1,5 @@
+from contextlib import closing
+from hashlib import sha256
 import json
 from http.client import HTTPConnection
 from http.server import ThreadingHTTPServer
@@ -54,6 +56,92 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn(b"test-secret", request("GET", "/api/runs")[1])
         self.assertFalse(self.path.exists())
 
+    def test_settings_diagnostics_require_origin_and_never_open_research_journal(self):
+        providers = self.root / "providers.env"
+        providers.write_text("OPENROUTER_API_KEY=fixture-private-token\n", encoding="utf-8")
+        remote = self.enterContext(patch("edgelab.dashboard.openrouter_catalog", return_value={
+            "provider": "openrouter", "status": "available", "models": [],
+        }))
+        dashboard = handler((self.path,), self.news, self.env, False, provider_settings_path=providers)
+        server = self.enterContext(ThreadingHTTPServer(("127.0.0.1", 0), dashboard))
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join)
+        self.addCleanup(server.shutdown)
+        host = f"127.0.0.1:{server.server_port}"
+
+        def request(method, path, data=None, origin=None):
+            headers = {"Content-Type": "application/json"}
+            if origin:
+                headers["Origin"] = origin
+            with closing(HTTPConnection("127.0.0.1", server.server_port, timeout=3)) as client:
+                client.request(method, path, json.dumps(data) if data is not None else None, headers)
+                response = client.getresponse()
+                return response.status, response.read()
+
+        url = "/api/settings/catalog"
+        body = {"provider": "openrouter", "free_only": True}
+        self.assertEqual(request("GET", url)[0], 404)
+        self.assertEqual(request("POST", url, body)[0], 403)
+        self.assertEqual(request("POST", url, body, "https://example.com")[0], 403)
+        origin = "http://" + host
+        self.assertEqual(request("POST", url, {**body, "prompt": "free text"}, origin)[0], 400)
+        remote.assert_not_called()
+        status, raw = request("POST", url, body, origin)
+        self.assertEqual(status, 200)
+        self.assertNotIn(b"fixture-private-token", raw)
+        remote.assert_called_once_with({"OPENROUTER_API_KEY": "fixture-private-token"},
+                                       allow_provider_io=True, free_only=True)
+        status, raw = request("POST", "/api/settings/test-retrieval", {"backend": "local"}, origin)
+        self.assertEqual(status, 200)
+        self.assertEqual({row["id"] for row in json.loads(raw)["citations"]}, {"adf", "kpss", "eg"})
+        self.assertFalse(self.path.exists())
+
+    def test_entry_cost_route_exposes_only_pinned_summary(self):
+        symbols = ("SPY", "IVV", "VOO")
+        result_path = self.root / "result.json"
+        summary = {"scheduled_sessions": 1, "matched_sessions": 1,
+                   "spread_bps": {symbol: {"median": "0.20"} for symbol in symbols},
+                   "scenarios": {mode: {symbol: {"cost_bps": {"mean": "1.50"}} for symbol in symbols}
+                                 for mode in ("base", "stress")}}
+        session = {"day": "2025-01-02", "status": "matched", "clocks_examined": 31, "all_orders_fit_clocks": 20,
+                   "scenarios": {mode: {symbol: {"cost_usd": "3.75", "quote_packet_utc": "private packet"}
+                                        for symbol in symbols} for mode in ("base", "stress")}}
+        raw = json.dumps({"summary": summary, "sessions": [session],
+                          "capital_usd_per_hypothetical_purchase": "25000"}).encode()
+        result_path.write_bytes(raw)
+        self.enterContext(patch("edgelab.etf_entry_costs.RESULT_SHA256", sha256(raw).hexdigest()))
+
+        def listen(dashboard):
+            server = self.enterContext(ThreadingHTTPServer(("127.0.0.1", 0), dashboard))
+            thread = Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            self.addCleanup(thread.join)
+            self.addCleanup(server.shutdown)
+            return server
+
+        def request(server, route):
+            with closing(HTTPConnection("127.0.0.1", server.server_port, timeout=3)) as client:
+                client.request("GET", route)
+                response = client.getresponse()
+                return response.status, json.loads(response.read())
+
+        route = "/api/etf-entry-costs"
+        configured = listen(handler((self.path,), self.news, self.env, False, etf_entry_costs_path=result_path))
+        status, data = request(configured, route)
+        self.assertEqual(status, 200)
+        self.assertEqual((data["matched_sessions"], data["clocks_fit"], data["budget_usd"]), (1, 20, 25000))
+        self.assertEqual(tuple(row["symbol"] for row in data["rows"]), symbols)
+        self.assertEqual(data["rows"][0]["base_mean_cost_usd"], 3.75)
+        self.assertNotIn("private packet", json.dumps(data))
+        self.assertEqual(request(configured, route + "?path=result.json")[0], 404)
+        self.assertEqual(request(configured, "/result.json")[0], 404)
+        result_path.write_bytes(raw + b"\n")
+        self.assertEqual(request(configured, route)[0], 503)
+        demo = listen(handler((self.path,), self.news, self.env, True, etf_entry_costs_path=result_path))
+        self.assertEqual(request(demo, route), (200, None))
+        self.assertFalse(self.path.exists())
+
     def test_projection_does_not_plot_unapproved_samples_and_uses_read_only_journal(self):
         journal = Journal(self.path)
         tool = Mock(side_effect=lambda *args: bound(*args, {"a": roots(), "b": roots()}))
@@ -74,6 +162,51 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(data["reviews"]["diagnostics"]["decision"], "proceed")
         self.assertEqual(before, self.path.read_bytes())
         tool.assert_called_once()
+
+    def test_malformed_spread_fit_preserves_recorded_verdict_and_price_chart(self):
+        journal = Journal(self.path)
+        reader = Journal(self.path, read_only=True)
+        dashboard = handler((self.path,), self.news, self.env, False)
+        server = self.enterContext(ThreadingHTTPServer(("127.0.0.1", 0), dashboard))
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join)
+        self.addCleanup(server.shutdown)
+        fit = {"p": 0.5, "slope": 1.0, "intercept": 0.0}
+        valid_result = {"a_on_b": fit, "b_on_a": fit}
+        cases = (
+            ("configuration", valid_result, {"config": []}, "unresolved"),
+            ("result", [], {}, "unresolved"),
+            ("fit", {**valid_result, "a_on_b": []}, {}, "unresolved"),
+            ("overflowing coefficient", {**valid_result, "a_on_b": {**fit, "slope": 10**400}}, {}, "stop"),
+            ("nonfinite spread", {**valid_result, "a_on_b": {**fit, "slope": 1e308}}, {}, "stop"),
+        )
+        for label, result, overrides, verdict in cases:
+            with self.subTest(label=label):
+                def compute(tool, rows, window, lag):
+                    if tool == "diagnostics":
+                        return bound(tool, rows, window, lag, {"a": roots(), "b": roots()})
+                    return {**bound(tool, rows, window, lag, result), **overrides}
+
+                service = ResearchService(journal, numerical_tool=compute, runtime_identity=lambda: RUNTIME)
+                run = str(uuid4())
+                plan = service.record_plan(run, "shared-trend", search(local_notes("cointegration")), "local")
+                service.approve(run, plan["candidates"][0]["digest"])
+                for step in ("diagnostics", "engle_granger"):
+                    service.action(run, step)
+                    service.critique(run, step)
+                service.finalize(run)
+
+                report = report_from_journal(reader, run)["report"]
+                self.assertEqual(report["verdict"], verdict)
+                with closing(HTTPConnection("127.0.0.1", server.server_port, timeout=3)) as client:
+                    client.request("GET", f"/api/run?id={run}")
+                    response = client.getresponse()
+                    self.assertEqual(response.status, 200)
+                    view = json.loads(response.read())
+                self.assertEqual(view["verdict"], {key: report[key] for key in ("verdict", "reason", "evidence_refs")})
+                self.assertEqual(len(view["chart"]["days"]), 180)
+                self.assertNotIn("spread", view["chart"])
 
     def test_demo_detects_planted_spread_level_shift(self):
         demo_runs(self.path)

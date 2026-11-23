@@ -7,7 +7,7 @@ from . import planning
 from .crew_roles import CrewRoles
 from .messages import ExecuteRequest, parse_run
 from .methods import Note
-from .providers import LMStudio, ProviderError
+from .providers import ChoiceAdviser, ProviderError
 from .research import ResearchService
 
 
@@ -29,7 +29,8 @@ class RunState(TypedDict, total=False):
 
 
 def build_graph(service: ResearchService, retrieve: Callable[[str], tuple[Note, ...]],
-                model: LMStudio | CrewRoles | None = None, *, use_model_critic: bool = True):
+                model: ChoiceAdviser | None = None, *, use_model_critic: bool = True,
+                adviser_provider: str | None = None):
     from dataclasses import asdict
     from langchain_core.runnables import RunnableLambda
     from langgraph.graph import END, START, StateGraph
@@ -49,10 +50,10 @@ def build_graph(service: ResearchService, retrieve: Callable[[str], tuple[Note, 
         if state.get("retrieval_error"):
             result["reason"] = "Configured retrieval failed; no ungrounded fallback was used."
         result["retrieval_observation"] = ("provider_error" if state.get("retrieval_error") else "completed")
+        if adviser_provider is not None:
+            result["adviser_provider"] = adviser_provider
         if isinstance(model, CrewRoles):
             result["role_backend"] = "crewai"
-            result["role_models"] = {role: model.models.get(role)
-                                     for role in (("planner", "critic") if use_model_critic else ("planner",))}
         return {"search_result": result}
 
     plan = StateGraph(PlanState)

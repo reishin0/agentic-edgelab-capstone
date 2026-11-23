@@ -1,11 +1,12 @@
 """Outcome-blind bounded beam search over allowlisted protocol decisions."""
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 import json
 from time import monotonic
 
-from .methods import BY_ID, Note
-from .providers import LMStudio, ProviderError
+from .methods import BY_ID, REQUIRED_METHOD_IDS, Note
+from .providers import ChoiceAdviser, ProviderError
 
 
 LEVELS = (
@@ -29,7 +30,7 @@ DECISION_TEXT = {
     "reuse_holdout": "Reuse holdout observations to select the protocol.",
     "in_sample_as_holdout": "Treat the same observations as in-sample and as holdout.",
 }
-REQUIRED = {"adf", "kpss", "eg"}
+REQUIRED = set(REQUIRED_METHOD_IDS)
 BEAM = 2
 THOUGHT_LIMIT = 21
 MODEL_LIMIT = 16
@@ -96,7 +97,7 @@ def protocol_issues(plans: tuple[tuple[str, ...], ...], notes: tuple[Note, ...])
     return tuple(issues)
 
 
-def search(notes: tuple[Note, ...], model: LMStudio | None = None, *, use_model_critic: bool = True) -> dict:
+def search(notes: tuple[Note, ...], model: ChoiceAdviser | None = None, *, use_model_critic: bool = True) -> dict:
     evidence = {note.id for note in notes if BY_ID.get(note.id) == note}
     trace: list[dict] = []
     attempts = 0
@@ -121,14 +122,15 @@ def search(notes: tuple[Note, ...], model: LMStudio | None = None, *, use_model_
         return choice
 
     def result(candidates=(), reason="") -> dict:
+        models = getattr(model, "models", None)
         return {"status": "awaiting_approval" if candidates else "unresolved",
                 "candidates": list(candidates), "branches": trace, "reason": reason,
                 "method_evidence": [asdict(BY_ID[key]) for key in sorted(evidence)],
                 "thoughts": len(trace), "model_attempts": attempts, "model_preference": preferred,
                 "model_decisions": decisions_log, "protocol_review": review,
-                "role_models": {role: model.models.get(role)
+                "role_models": {role: models.get(role)
                                 for role in (("planner", "critic") if use_model_critic else ("planner",))}
-                if isinstance(model, LMStudio) else {}}
+                if isinstance(models, Mapping) else {}}
 
     if not REQUIRED <= evidence:
         review.update(outcome="blocked", issues=["missing_method_evidence"])

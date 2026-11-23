@@ -13,6 +13,7 @@ from .graph import build_graph
 from .history import FrozenHistory
 from .journal import Journal
 from .methods import CORPUS, CORPUS_SHA256, NAMESPACE, PineconeMethods, local_notes
+from .model_settings import local_catalog, openrouter_adviser
 from .providers import LMStudio, ProviderError, read_env
 from .reporting import report_from_journal
 from .research import ResearchService, validate_id
@@ -39,7 +40,11 @@ def main() -> None:
     data.add_argument("--case", choices=CASES)
     data.add_argument("--history-manifest", type=Path, help="JSON manifest for a frozen in-sample CSV")
     plan.add_argument("--retrieval", choices=("local", "pinecone"), default="local")
-    plan.add_argument("--lm-studio", action="store_true")
+    advisers = plan.add_mutually_exclusive_group()
+    advisers.add_argument("--lm-studio", action="store_true")
+    advisers.add_argument("--openrouter", action="store_true", help="Opt into OpenRouter Planner advice")
+    plan.add_argument("--model-id", help="Exact loaded LM Studio or OpenRouter model ID")
+    plan.add_argument("--allow-paid-model", action="store_true", help="Opt into paid OpenRouter routes")
     plan.add_argument("--model-critic", action="store_true",
                       help="Opt into an additional advisory model Critic; requires a separately qualified model")
     plan.add_argument("--allow-provider-io", action="store_true")
@@ -79,32 +84,49 @@ def main() -> None:
                     result = advisory_report(result, CrewRoles(model))
             else:
                 retrieve, model = local_notes, None
-                use_model_critic = False
+                use_model_critic, adviser_provider = False, None
                 if args.command == "plan":
                     if args.crewai and not args.lm_studio:
                         parser.error("--crewai planning requires --lm-studio")
                     if args.model_critic and not args.lm_studio:
                         parser.error("--model-critic requires --lm-studio")
+                    if args.model_id is not None and not (args.lm_studio or args.openrouter):
+                        parser.error("--model-id requires --lm-studio or --openrouter")
+                    if args.openrouter and not args.model_id:
+                        parser.error("--openrouter requires an exact --model-id")
+                    if args.allow_paid_model and not args.openrouter:
+                        parser.error("--allow-paid-model requires --openrouter")
                     use_model_critic = args.model_critic
-                    if args.lm_studio or args.retrieval == "pinecone":
+                    if args.lm_studio or args.openrouter or args.retrieval == "pinecone":
                         if not args.allow_provider_io:
                             parser.error("Provider access requires --allow-provider-io")
-                        settings = read_env(args.settings_file)
+                        settings = read_env(args.settings_file) if args.settings_file.is_file() else {}
                         if args.retrieval == "pinecone":
                             retrieve = PineconeMethods(
                                 settings.get("PINECONE_INDEX_HOST", ""), settings.get("PINECONE_API_KEY", ""),
-                            ).search
+                            ).retrieve
                         if args.lm_studio:
+                            if args.model_id is not None:
+                                catalog = local_catalog(settings, allow_provider_io=True)
+                                if args.model_id not in catalog["loaded_ids"]:
+                                    parser.error("Load the selected LM Studio model before planning")
+                                settings["LM_STUDIO_PLANNER_MODEL"] = args.model_id
                             model = LMStudio.from_settings(settings)
+                            adviser_provider = "lm_studio"
                             if args.crewai:
                                 model = CrewRoles(model)
+                        if args.openrouter:
+                            model = openrouter_adviser(settings, args.model_id, allow_provider_io=True,
+                                                       free_only=not args.allow_paid_model)
+                            adviser_provider = "openrouter"
                     case = None if args.history_manifest else args.case or CASES[0]
                     state = {"mode": "plan", "run_id": str(uuid4()), "case": case, "backend": args.retrieval}
                 else:
                     state = {"mode": "execute", "run_id": args.run, "digest": args.approve}
                 history = FrozenHistory.open(args.history_manifest) if args.history_manifest else None
                 service = ResearchService(Journal(args.journal), history=history)
-                graph = build_graph(service, retrieve, model, use_model_critic=use_model_critic)
+                graph = build_graph(service, retrieve, model, use_model_critic=use_model_critic,
+                                    adviser_provider=adviser_provider)
                 from langsmith import tracing_context
 
                 with tracing_context(enabled=False):

@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 import json
 import logging
+from math import isfinite
 from pathlib import Path
 import re
 import sqlite3
@@ -15,11 +16,15 @@ from uuid import uuid4
 
 from .contracts import fingerprint
 from .cross_assets import load_snapshot
+from .etf_entry_costs import load_etf_entry_costs
 from .history import FrozenHistory
 from .journal import Journal, JournalConflict
 from .leaderboard import load_leaderboard
+from .methods import BY_ID, CORPUS_SHA256, PineconeMethods, local_notes
+from .model_settings import local_catalog, openrouter_catalog, test_model
 from .news import LIMIT, MAX_BYTES, NEWS_CACHE, NEWS_PATH, ROOT, SYMBOL, article, cache, timestamp
-from .providers import LMStudio, pinecone_url, read_env
+from .planning import REQUIRED
+from .providers import LMStudio, ProviderError, _parse_json, pinecone_url, read_env
 from .research import validate_id
 from .stability_snapshot import CACHE_FILE as STABILITY_CACHE_FILE, load_stability_snapshot
 from .stat_tools import SYNTHETIC_SEED, Window, guarded_rows, sample_fingerprint, synthetic
@@ -27,11 +32,14 @@ from .waitlist import load_waitlist
 
 
 JOURNAL_PATH = ROOT / "runtime" / "edgelab.sqlite"
+PROVIDER_SETTINGS_PATH = ROOT / "providers.env"
 LOG = logging.getLogger(__name__)
 ASSETS = {"/": ("index.html", "text/html"), "/ui.css": ("ui.css", "text/css"),
-          "/ui.js": ("ui.js", "text/javascript")}
+          "/ui.js": ("ui.js", "text/javascript"), "/settings.js": ("settings.js", "text/javascript")}
+SETTINGS_ROUTES = {"/api/settings/catalog", "/api/settings/test-model", "/api/settings/test-retrieval"}
 ROUTES = ASSETS.keys() | {"/api/runs", "/api/run", "/api/news", "/api/waitlist",
-                         "/api/cross-assets", "/api/leaderboard", "/api/synthetic-stability"}
+                         "/api/cross-assets", "/api/leaderboard", "/api/synthetic-stability",
+                         "/api/etf-entry-costs"} | SETTINGS_ROUTES
 _SYMBOL = r"(?:[A-Z]{3}/[A-Z]{3}|[A-Z0-9.-]+)"
 _PAIR = re.compile(rf"; A=({_SYMBOL}), B=({_SYMBOL});")
 
@@ -83,15 +91,25 @@ def sample_chart(approval: dict, results: dict, history: FrozenHistory | None = 
         return None
     series = {"days": [row.day for row in sample], "a": [row.a for row in sample], "b": [row.b for row in sample],
               "source": source}
-    result = results.get("engle_granger", {})
-    observation = result.get("observation", {})
-    fit = observation.get("result", {}).get("a_on_b", {})
-    if (result.get("approval") == approval["digest"]
-            and observation.get("config", {}).get("sample_sha256") == approval["sample_sha256"]
-            and isinstance(observation.get("result"), dict)
-            and observation.get("result_sha256") == fingerprint(observation["result"])
-            and all(type(fit.get(name)) in (float, int) for name in ("slope", "intercept"))):
-        series["spread"] = [row.a - fit["intercept"] - fit["slope"] * row.b for row in sample]
+    result = results.get("engle_granger")
+    if not isinstance(result, dict) or result.get("approval") != approval["digest"]:
+        return series
+    observation = result.get("observation")
+    if not isinstance(observation, dict) or "error" in observation:
+        return series
+    config, payload = observation.get("config"), observation.get("result")
+    if (not isinstance(config, dict) or config.get("sample_sha256") != approval["sample_sha256"]
+            or not isinstance(payload, dict) or observation.get("result_sha256") != fingerprint(payload)):
+        return series
+    fit = payload.get("a_on_b")
+    if not isinstance(fit, dict) or any(type(fit.get(name)) not in (float, int) for name in ("slope", "intercept")):
+        return series
+    try:
+        spread = [row.a - fit["intercept"] - fit["slope"] * row.b for row in sample]
+    except OverflowError:
+        return series
+    if all(map(isfinite, spread)):
+        series["spread"] = spread
     return series
 
 
@@ -165,11 +183,52 @@ def news_view(path: Path, *, demo: bool = False) -> dict:
         return {"status": "News cache unreadable", "articles": []}
 
 
+def provider_action(route: str, data: object, env: Path, demo: bool) -> dict:
+    if not isinstance(data, dict):
+        raise ValueError("Expected a settings object")
+    if route == "/api/settings/test-retrieval":
+        backend = data.get("backend")
+        if set(data) != {"backend"} or backend not in ("local", "pinecone"):
+            raise ValueError("Choose an evidence source")
+        if backend == "local":
+            ids = {note.id for note in local_notes("cointegration")}
+            missing = REQUIRED - ids
+            result = {"corpus_version": "Bundled notes", "corpus_sha256": CORPUS_SHA256,
+                      "required": {"status": "incomplete" if missing else "complete",
+                                   "verified_ids": sorted(REQUIRED & ids), "missing_ids": sorted(missing)}}
+        else:
+            if demo:
+                raise ProviderError("Cloud diagnostics are disabled in synthetic demo mode")
+            settings = read_env(env) if env.is_file() else {}
+            if not all(settings.get(key) for key in ("PINECONE_INDEX_HOST", "PINECONE_API_KEY")):
+                raise ProviderError("Configure the Pinecone index host and key in providers.env")
+            result = PineconeMethods(settings["PINECONE_INDEX_HOST"], settings["PINECONE_API_KEY"]).retrieval_diagnostic()
+        result["citations"] = [{"id": name, "url": BY_ID[name].url, "locator": BY_ID[name].locator}
+                               for name in result["required"]["verified_ids"]]
+        return result
+
+    catalog = route == "/api/settings/catalog"
+    fields = {"provider", "free_only"} if catalog else {"provider", "free_only", "model_id"}
+    provider, free_only = data.get("provider"), data.get("free_only")
+    if (set(data) != fields or provider not in ("lm_studio", "openrouter") or type(free_only) is not bool
+            or (not catalog and not isinstance(data["model_id"], str))):
+        raise ValueError("Choose a provider and a model from its catalog")
+    if demo and (provider != "lm_studio" or not catalog):
+        raise ProviderError("Provider calls are disabled in synthetic demo mode")
+    settings = read_env(env) if not demo and env.is_file() else {}
+    if catalog and provider == "lm_studio":
+        return local_catalog(settings, allow_provider_io=not demo)
+    if catalog:
+        return openrouter_catalog(settings, allow_provider_io=True, free_only=free_only)
+    return test_model(settings, provider, data["model_id"], allow_provider_io=True, free_only=free_only)
+
+
 def handler(journal_paths: tuple[Path, ...], news_path: Path, env: Path, demo: bool,
             histories: tuple[FrozenHistory, ...] = (),
             waitlist: dict | None = None, cross_assets: dict | None = None,
             leaderboard: dict | None = None, *, live_leaderboard: Path | None = None,
-            stability_path: Path | None = None):
+            stability_path: Path | None = None, etf_entry_costs_path: Path | None = None,
+            provider_settings_path: Path = PROVIDER_SETTINGS_PATH):
     paths = tuple(path.resolve() for path in journal_paths)
     history_by_hash = {history.manifest_sha256: history for history in histories}
     if len(paths) != len(set(paths)) or len(histories) != len(history_by_hash):
@@ -205,6 +264,28 @@ def handler(journal_paths: tuple[Path, ...], news_path: Path, env: Path, demo: b
 
         def json(self, status, data):
             self.reply(status, "application/json", json.dumps(data, allow_nan=False).encode("utf-8"))
+
+        def do_POST(self):
+            if self.path not in SETTINGS_ROUTES:
+                return self.json(501, {"error": "Only settings diagnostics accept POST"})
+            port, host = self.server.server_port, self.headers.get("Host")
+            if (host not in {f"127.0.0.1:{port}", f"localhost:{port}"}
+                    or self.headers.get("Origin") != f"http://{host}"):
+                return self.json(403, {"error": "Open Settings from the local dashboard"})
+            if self.headers.get_content_type() != "application/json":
+                return self.json(415, {"error": "Expected a JSON settings request"})
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if not 0 < size <= 1024:
+                    return self.json(413, {"error": "Invalid settings request size"})
+                data = _parse_json(self.rfile.read(size))
+                return self.json(200, provider_action(self.path, data, provider_settings_path, demo))
+            except ProviderError as error:
+                return self.json(503, {"error": str(error)})
+            except OSError:
+                return self.json(503, {"error": "Local provider settings could not be read"})
+            except (TypeError, ValueError, RecursionError):
+                return self.json(400, {"error": "Invalid request or provider configuration"})
 
         def do_GET(self):
             port = self.server.server_port
@@ -248,6 +329,9 @@ def handler(journal_paths: tuple[Path, ...], news_path: Path, env: Path, demo: b
                 if target.path == "/api/synthetic-stability" and not target.query:
                     snapshot = load_stability_snapshot(stability_path) if stability_path is not None and not demo else None
                     return self.json(200, snapshot)
+                if target.path == "/api/etf-entry-costs" and not target.query:
+                    costs = load_etf_entry_costs(etf_entry_costs_path) if etf_entry_costs_path is not None and not demo else None
+                    return self.json(200, costs)
                 return self.json(404, {"error": "Not found"})
             except KeyError as error:
                 if error.args == ("Run not found",):
@@ -293,10 +377,11 @@ def main() -> None:
     parser.add_argument("--cross-assets", type=Path, help="Show pinned local FX and crypto candidates")
     parser.add_argument("--leaderboard", type=Path, help="Show a pinned local pair screening snapshot")
     parser.add_argument("--live-leaderboard", action="store_true", help="Reload the local snapshot on each request")
+    parser.add_argument("--etf-entry-costs", type=Path, help="Show the pinned November 23 ETF entry-cost result.json")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s EdgeLab %(message)s")
-    if args.demo and (args.history_manifest or args.waitlist or args.cross_assets or args.leaderboard):
-        parser.error("Local historical data, waitlists, and leaderboards are not allowed in synthetic demo mode")
+    if args.demo and (args.history_manifest or args.waitlist or args.cross_assets or args.leaderboard or args.etf_entry_costs):
+        parser.error("Local historical data, waitlists, leaderboards, and ETF costs are not allowed in synthetic demo mode")
     if args.live_leaderboard and not args.leaderboard:
         parser.error("--live-leaderboard requires --leaderboard")
     try:
@@ -319,7 +404,7 @@ def main() -> None:
         try:
             dashboard = handler(paths, news_path, ROOT / ".env", args.demo, histories, waitlist, cross_assets,
                                 leaderboard, live_leaderboard=args.leaderboard if args.live_leaderboard else None,
-                                stability_path=ROOT / STABILITY_CACHE_FILE)
+                                stability_path=ROOT / STABILITY_CACHE_FILE, etf_entry_costs_path=args.etf_entry_costs)
         except ValueError as error:
             parser.exit(2, f"Dashboard: {error}\n")
         with ThreadingHTTPServer(("127.0.0.1", args.port), dashboard) as server:

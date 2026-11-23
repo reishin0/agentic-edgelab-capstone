@@ -49,6 +49,37 @@ The provider adapter filters and reranks; it does not fall back silently.
 Method notes are not market evidence and cannot authorize an experiment.
 No live Pinecone seed or search is required by this rollout.
 
+Dashboard research settings
+---------------------------
+
+Open **Settings** on the loopback dashboard. LM Studio is the default model
+provider and bundled public notes are the default evidence source. EdgeLab
+lists downloaded GGUF files and uses the loopback catalog to identify loaded
+model IDs. Load the chosen model in LM Studio before selecting it in EdgeLab.
+**Run without model advice** uses the deterministic Planner.
+
+Use an ignored ``providers.env`` file in the checkout for optional provider
+configuration. Supported keys include ``LM_STUDIO_MODELS_DIR`` for an
+absolute local model folder override, ``LM_STUDIO_BASE_URL`` and
+``LM_STUDIO_API_KEY`` for the loopback service, ``OPENROUTER_API_KEY`` for the
+account catalog, and ``PINECONE_INDEX_HOST`` and ``PINECONE_API_KEY`` for the
+public methods index. **Refresh models** queries OpenRouter only when it is
+selected. **Free only** limits execution to eligible zero-priced routes. A
+model test submits a fixed synthetic prompt. A successful test checks the
+route and structured response once. It does not measure adviser quality.
+
+**Test retrieval** shows exact required-note coverage and eligible citations.
+The Pinecone diagnostic checks semantic ranking independently. Planning
+requires exact reviewed ADF, KPSS, and Engle-Granger records from the pinned
+namespace. Incomplete retrieval leaves the plan unresolved. Corpus seeding
+remains an explicit digest-bound CLI command using the same settings file.
+
+The Settings panel copies a CLI command for a new synthetic plan. The
+dashboard reads saved journals. The CLI records the selected adviser and
+retrieval source with the plan. Use the exact approval command to execute
+statistics after reviewing the plan. The numerical Critic and controller
+retain authority, and there is no automatic cloud fallback.
+
 2.1: ReAct execution and durable evidence
 -----------------------------------------
 

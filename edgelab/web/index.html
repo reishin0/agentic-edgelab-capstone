@@ -6,17 +6,77 @@
   <title>EdgeLab | Research Monitor</title>
   <link rel="stylesheet" href="/ui.css">
   <script src="/ui.js" defer></script>
+  <script src="/settings.js" defer></script>
 </head>
 <body>
   <header class="bar">
     <div class="shell top">
       <a class="brand" href="#"><span class="mark" aria-hidden="true">E</span> EdgeLab</a>
       <nav aria-label="Research views">
-        <a href="#overview">Overview</a><a href="#leaderboard">Pairs</a><a href="#trace">Run trace</a><a href="#evidence">Evidence</a><a href="#synthetic-stability">Stability study</a><a href="#waitlist">Waitlist</a><a href="#checkpoints">Checkpoints</a>
+        <a href="#overview">Overview</a><a href="#leaderboard">Pairs</a><a href="#trace">Run trace</a><a href="#evidence">Evidence</a><a href="#etf-entry-costs" id="etf-entry-nav" hidden>ETF costs</a><a href="#synthetic-stability">Stability study</a><a href="#waitlist">Waitlist</a><a href="#checkpoints">Checkpoints</a>
       </nav>
-      <span class="status"><i></i> Local read-only</span>
+      <div class="header-actions">
+        <span class="status"><i></i> Local read-only</span>
+        <button type="button" id="open-settings" class="settings-button" aria-haspopup="dialog"
+                aria-controls="research-settings">Settings</button>
+      </div>
     </div>
   </header>
+  <dialog id="research-settings" class="settings-dialog" aria-labelledby="settings-title">
+    <div class="settings-heading">
+      <h2 id="settings-title" tabindex="-1" autofocus>Research settings</h2>
+      <button type="button" id="close-settings" class="settings-button">Close</button>
+    </div>
+    <section aria-labelledby="settings-advice-title">
+      <h3 id="settings-advice-title">Planner advice</h3>
+      <label for="settings-provider">Provider</label>
+      <select id="settings-provider">
+        <option value="lm_studio">LM Studio · local</option>
+        <option value="openrouter">OpenRouter · cloud</option>
+        <option value="none">Run without model advice</option>
+      </select>
+      <div id="settings-model-controls">
+        <div id="settings-cloud" hidden>
+          <label class="settings-check"><input type="checkbox" id="settings-free" checked> Free only</label>
+          <p class="settings-help">Clearing Free only allows paid routes. A test or a new plan can incur provider charges.</p>
+        </div>
+        <div class="settings-actions">
+          <button type="button" id="settings-refresh-models" class="settings-button">Refresh models</button>
+          <button type="button" id="settings-test-model" class="settings-button" disabled>Test model</button>
+        </div>
+        <div id="settings-catalog" hidden>
+          <label for="settings-model-filter">Find a model</label>
+          <input type="search" id="settings-model-filter" placeholder="Name or model ID">
+          <label for="settings-model">Model</label>
+          <select id="settings-model" aria-describedby="settings-model-detail"></select>
+          <p id="settings-model-detail" class="settings-help"></p>
+        </div>
+        <p id="settings-model-status" class="settings-help" role="status"></p>
+      </div>
+    </section>
+    <section aria-labelledby="settings-evidence-title">
+      <h3 id="settings-evidence-title">Method evidence</h3>
+      <label for="settings-retrieval">Retrieval source</label>
+      <select id="settings-retrieval">
+        <option value="local">Bundled notes · local</option>
+        <option value="pinecone">Pinecone · public method notes</option>
+      </select>
+      <div class="settings-actions">
+        <button type="button" id="settings-test-retrieval" class="settings-button">Test retrieval</button>
+      </div>
+      <div id="settings-retrieval-status" class="settings-help" role="status"></div>
+    </section>
+    <section aria-labelledby="settings-plan-title">
+      <h3 id="settings-plan-title">Start a new plan</h3>
+      <p class="settings-help">Run this command from the EdgeLab checkout with your research environment active. It prepares a synthetic plan for your approval.</p>
+      <label class="sr-only" for="settings-command">Plan command</label>
+      <textarea id="settings-command" rows="3" readonly></textarea>
+      <div class="settings-actions">
+        <button type="button" id="settings-copy" class="settings-button" disabled>Copy plan command</button>
+        <span id="settings-copy-status" class="settings-help" role="status"></span>
+      </div>
+    </section>
+  </dialog>
   <main class="shell">
     <section id="overview">
       <div class="intro">
@@ -62,6 +122,42 @@
       </div>
       <article class="panel wide"><div class="panel-head"><h3>Statistical diagnostics</h3><span>Declared threshold &alpha; = 0.05</span></div><div id="stats"></div></article>
     </section>
+    <section id="etf-entry-costs" aria-labelledby="etf-entry-title" hidden>
+      <div class="section-head">
+        <h2 id="etf-entry-title">ETF entry costs</h2>
+        <button type="button" id="etf-entry-tip" class="etf-tip-button" aria-haspopup="dialog"
+                aria-controls="etf-entry-dialog">How to read</button>
+      </div>
+      <article class="panel etf-entry-panel">
+        <div class="panel-head etf-entry-meta">
+          <p id="etf-entry-scope"></p><span id="etf-entry-clocks"></span>
+        </div>
+        <div class="etf-entry-comparison">
+          <div class="etf-entry-chart" aria-hidden="true">
+            <div class="etf-chart-heading">
+              <h3>Mean modeled cost (bp)</h3>
+              <div class="etf-chart-legend"><span>Base</span><span>Stress</span></div>
+            </div>
+            <div id="etf-entry-bars"></div>
+          </div>
+          <div id="etf-entry-table"></div>
+        </div>
+      </article>
+      <dialog id="etf-entry-dialog" class="etf-tip" aria-labelledby="etf-tip-title">
+        <h2 id="etf-tip-title" tabindex="-1" autofocus>How to read ETF entry costs</h2>
+        <dl>
+          <dt>Match the time</dt>
+          <dd>On each sampled morning, the model uses the same second in New York for all three ETFs. It picks the first second when each full purchase fits the size limits in both scenarios.</dd>
+          <dt>Read costs in dollars and basis points</dt>
+          <dd>One basis point (bp) is 0.01%. The quoted spread is the gap between the bid and ask. The study measures purchase cost against the midpoint value of the whole shares purchased.</dd>
+          <dt>Compare base and stress</dt>
+          <dd>Base uses the quoted ask, 1 bp of adverse slippage and a $1 commission. Stress doubles the distance from midpoint to ask and uses 5 bp of slippage with the same commission.</dd>
+          <dt>Check the scope</dt>
+          <dd>These are simulated purchase costs for the saved mornings. The study measures entry costs only.</dd>
+        </dl>
+        <button type="button" id="etf-tip-close" class="etf-tip-button">Close</button>
+      </dialog>
+    </section>
     <section id="synthetic-stability" aria-labelledby="stability-title">
       <div class="section-head"><h2 id="stability-title">Synthetic stability study</h2><span id="stability-state" aria-live="polite"></span></div>
       <div id="stability-results"></div>
@@ -100,7 +196,7 @@
     <section id="checkpoints">
       <div class="section-head"><h2>Checkpoint coverage</h2><span>Design vs. implementation</span></div>
       <div class="panel coverage">
-        <div><b>1.1</b><h3>Local architecture</h3><p>Loopback LM Studio adapter and role IDs. Planner ranking is optional; Critic and Reporter are deterministic. No live health probe.</p></div>
+        <div><b>1.1</b><h3>Local architecture</h3><p>LM Studio is the default adviser in Settings. Planner advice is optional. The controller and its Critic apply deterministic evidence rules.</p></div>
         <div><b>2.1</b><h3>Research loop</h3><p>Approval, typed tools, milestone review and durable evidence. Holdout evaluation, Johansen/Gregory–Hansen and cloud fallback are not enabled.</p></div>
         <div><b>3.1</b><h3>Grounded retrieval</h3><p>Reviewed local corpus or optional Pinecone retrieval. Verbatim quote verification and access-control demonstrations remain open.</p></div>
         <div><b>4.1</b><h3>Structured planning</h3><p>Outcome-blind beam search, retained pruning reasons and MCP catalog/trace. CrewAI tasks and broader LangChain adapters remain open.</p></div>

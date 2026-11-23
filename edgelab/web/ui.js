@@ -336,8 +336,10 @@ function show(run, cfg, demo) {
     plan ? "Local notes used in selected run" : "No selected-run evidence";
   const observedLM = modelDecisions ? modelDecisions + " structured decision(s) recorded" :
     plan?.model_attempts ? "Attempted; no structured decision" : "No model decision in selected run";
+  const modelName = plan?.role_models?.planner;
   group("providers", [
-    ["LM Studio", cfg.lm_studio, observedLM],
+    ["Planner model", modelName || "No model recorded", plan?.adviser_provider ?
+      (plan.adviser_provider === "openrouter" ? "OpenRouter" : "LM Studio") + " · " + observedLM : observedLM],
     ["Pinecone", cfg.pinecone, observedPine],
     ["MCP interface", "Host-bound", "Tool catalog and planning trace; no dashboard calls"],
     ["News credentials", cfg.news, "Dashboard reads only the local cache"]
@@ -596,15 +598,86 @@ async function loadStabilityStudy() {
   }
 }
 
+function renderEtfEntryCosts(study) {
+  const money = new Intl.NumberFormat("en-US", {style: "currency", currency: "USD"});
+  const budget = new Intl.NumberFormat("en-US", {style: "currency", currency: "USD", maximumFractionDigits: 0});
+  const count = new Intl.NumberFormat("en-US");
+  $("etf-entry-scope").textContent = `${study.start_date} to ${study.end_date} | ${study.matched_sessions}/${study.scheduled_sessions} mornings matched | ${budget.format(study.budget_usd)} per purchase`;
+  $("etf-entry-clocks").textContent = `${count.format(study.clocks_fit)} of ${count.format(study.clocks_checked)} checked seconds fit all purchases`;
+  const scenarios = ["base", "stress"];
+  const ceiling = Math.ceil(Math.max(1, ...study.rows.flatMap(row =>
+    scenarios.map(scenario => row[`${scenario}_mean_cost_bps`]))));
+  $("etf-entry-bars").replaceChildren(...study.rows.map(row => {
+    const line = node("div", undefined, "etf-chart-row");
+    const bars = node("div");
+    for (const scenario of scenarios) {
+      const meter = node("meter", undefined, `etf-meter-${scenario}`);
+      meter.max = ceiling;
+      meter.value = row[`${scenario}_mean_cost_bps`];
+      bars.append(meter);
+    }
+    line.append(node("strong", row.symbol), bars);
+    return line;
+  }));
+
+  const grid = table(["ETF", "Median spread", "Mean base", "Mean stress"], study.rows.map(row => {
+    const symbol = node("strong", row.symbol);
+    if (row.symbol === study.reference) symbol.append(node("small", "Reference"));
+    return [symbol, `${row.median_spread_bps.toFixed(3)} bp`, ...scenarios.map(scenario => {
+      const cost = node("span", `${row[`${scenario}_mean_cost_bps`].toFixed(3)} bp`);
+      cost.append(node("small", money.format(row[`${scenario}_mean_cost_usd`])));
+      return cost;
+    })];
+  }));
+  grid.firstElementChild.setAttribute("aria-label", "ETF spread and modeled purchase cost");
+  $("etf-entry-table").replaceChildren(grid);
+}
+
+let etfEntryRequest = 0;
+async function loadEtfEntryCosts() {
+  const request = ++etfEntryRequest;
+  const section = $("etf-entry-costs"), nav = $("etf-entry-nav");
+  try {
+    const study = await api("/api/etf-entry-costs");
+    if (request !== etfEntryRequest) return;
+    if (study?.rows?.length) {
+      renderEtfEntryCosts(study);
+      section.hidden = nav.hidden = false;
+      return;
+    }
+  } catch {}
+  if (request !== etfEntryRequest) return;
+  section.hidden = nav.hidden = true;
+  if ($("etf-entry-dialog").open) $("etf-entry-dialog").close();
+}
+
+const etfTip = $("etf-entry-dialog");
+$("etf-entry-tip").addEventListener("click", () => etfTip.showModal());
+$("etf-tip-close").addEventListener("click", () => etfTip.close());
+etfTip.addEventListener("close", () => {
+  ($("etf-entry-costs").hidden ? $("refresh") : $("etf-entry-tip")).focus();
+});
+
 $("waitlist-filter").addEventListener("input", () => { waitlistPage = 0; renderWaitlist(); });
 $("waitlist-prev").addEventListener("click", () => { waitlistPage--; renderWaitlist(); });
 $("waitlist-next").addEventListener("click", () => { waitlistPage++; renderWaitlist(); });
 $("run-select").addEventListener("change", refreshRuns);
-$("refresh").addEventListener("click", () => { refreshRuns(); refreshNews(); loadLeaderboard(); loadStabilityStudy(); });
-refreshRuns();
+$("refresh").addEventListener("click", () => {
+  refreshRuns(); refreshNews(); loadLeaderboard(); loadStabilityStudy(); loadEtfEntryCosts();
+});
+const initialRun = refreshRuns();
 refreshNews();
 loadWaitlist();
 loadCrossAssets();
-loadLeaderboard();
+const initialLeaderboard = loadLeaderboard();
 loadStabilityStudy();
+const initialEtfCosts = loadEtfEntryCosts();
+if (location.hash === "#etf-entry-costs") {
+  Promise.allSettled([initialRun, initialLeaderboard, initialEtfCosts]).then(() => {
+    const panel = $("etf-entry-costs");
+    if (location.hash === "#etf-entry-costs" && !panel.hidden) {
+      panel.scrollIntoView({block: "start", behavior: "instant"});
+    }
+  });
+}
 setInterval(() => { if (!document.hidden) { refreshNews(); loadLeaderboard(); } }, 20000);

@@ -9,3 +9,8 @@ __pycache__/
 /.pytest_cache/
 /build/
 /dist/
+
+# Keep local agent guidance and provider settings private.
+/AGENTS.md
+*.env
+*.env.*

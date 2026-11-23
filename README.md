@@ -9,7 +9,9 @@ Agentic EdgeLab is a local research assistant for quantitative analysts who need
 3. The **Critic** reviews evidence and flags conflicts. Gate rules and the controller determine whether the workflow continues, stops, requests revision or remains unresolved.
 4. The **Reporter** explains the recorded verdict from verified evidence. Optional CrewAI role tasks advise inside the workflow. The local MCP interface and dashboard provide read-only inspection.
 
-The tools use statsmodels for ADF and KPSS, bidirectional Engle–Granger tests and stability diagnostics. The project includes local method notes and optional LM Studio and Pinecone integrations. See [architecture](ARCHITECTURE.rst), [message contracts](CONTRACTS.rst) and [deployment](DEPLOYMENT.rst).
+The tools use statsmodels for ADF and KPSS, bidirectional Engle–Granger tests and stability diagnostics. The project includes local method notes, optional LM Studio and OpenRouter model advice, and optional Pinecone retrieval. See [architecture](ARCHITECTURE.rst), [message contracts](CONTRACTS.rst) and [dashboard settings](DEPLOYMENT.rst).
+
+Use the [Advanced MCP integration](integrations/advanced_mcp/README.md) to compare approved synthetic reports from an MCP client.
 
 ## Run the synthetic example
 
