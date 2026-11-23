@@ -11,7 +11,7 @@ Agentic EdgeLab is a local research assistant for quantitative analysts who need
 
 The tools use statsmodels for ADF and KPSS, bidirectional Engle–Granger tests and stability diagnostics. The project includes local method notes, optional LM Studio and OpenRouter model advice, and optional Pinecone retrieval. See [architecture](ARCHITECTURE.rst), [message contracts](CONTRACTS.rst) and [dashboard settings](DEPLOYMENT.rst).
 
-The bundled [Advanced MCP integration](integrations/advanced_mcp/README.md) serves approved synthetic reports and supports authenticated approval, receipt reconciliation, and resume for synthetic draft saves. Scientific execution requires its own exact run and protocol approval in the EdgeLab CLI.
+The bundled [`mcp_gateway` integration](integrations/advanced_mcp/README.md) serves approved synthetic reports and supports authenticated approval, receipt reconciliation, and resume for synthetic draft saves. Scientific execution requires its own exact run and protocol approval in the EdgeLab CLI.
 
 ## Run the synthetic example
 
@@ -77,7 +77,7 @@ Use the [workflow comparison protocol](research/workflow_comparison/PROTOCOL.rst
 ## Repository map
 
 - `edgelab/` contains the controller, role adapters, statistical tools, evidence contracts, journal, reporting, MCP and dashboard.
-- `integrations/advanced_mcp/` contains the bundled gateway, its loopback profiles, and the report and draft adapters.
+- `integrations/advanced_mcp/` contains the report and draft adapters and the bundled `mcp_gateway` project with its loopback profiles.
 - `tests/` contains the core offline tests and synthetic fixtures.
 - `research/` contains the workflow benchmark, independent bootstrap experiment and the development and holdout protocol code.
 

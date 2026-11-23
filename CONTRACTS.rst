@@ -29,7 +29,7 @@ Permission model
 The local OS operator owns the CLI, journals, and subprocess configuration.
 An approval digest binds a plan. A trusted host chooses the journal and run
 for EdgeLab's local stdio MCP interface. Keep that interface local. The
-separate authenticated Advanced MCP gateway uses caller roles and individual
+authenticated ``mcp_gateway`` uses caller roles and individual
 workflow ownership for synthetic draft approval and recovery. Its operator
 decision covers the exact draft save. The scientific CLI requires separate
 protocol approval.

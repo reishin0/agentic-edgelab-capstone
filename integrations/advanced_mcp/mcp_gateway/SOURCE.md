@@ -1,4 +1,4 @@
-# Advanced MCP source
+# MCP gateway source
 
 This copy comes from the sibling `advanced_mcp` project, based on commit
 `edaf21b` (Add durable workflows with approval and restart-safe resume). The

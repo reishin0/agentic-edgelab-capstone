@@ -1,14 +1,14 @@
-# Advanced MCP in EdgeLab
+# MCP gateway in EdgeLab
 
-EdgeLab includes the [Advanced MCP gateway package](gateway/SOURCE.md) and two loopback profiles. The report profile serves verified synthetic research evidence. The draft profile implements authenticated operator approval, receipt reconciliation, and resume for synthetic draft saves. The gateway workflow database, draft database, and EdgeLab scientific journal each have their own purpose and file.
+EdgeLab includes the [`mcp_gateway` package](mcp_gateway/SOURCE.md) and two loopback profiles. The report profile serves verified synthetic research evidence. The draft profile implements authenticated operator approval, receipt reconciliation, and resume for synthetic draft saves. The gateway workflow database, draft database, and EdgeLab scientific journal each have their own purpose and file.
 
 ## Install from this checkout
 
-From the EdgeLab repository root in PowerShell, activate the EdgeLab Python environment. The gateway uses its own virtual environment and dependency lock. The draft profile also requires Node.js 20 or newer and pnpm.
+From the EdgeLab repository root in PowerShell, activate the EdgeLab Python environment. The `mcp-gateway` distribution installs the `mcp_gateway` Python module and the `mcp-gateway` command in a separate virtual environment using the bundled dependency lock. The draft profile also requires Node.js 20 or newer and pnpm.
 
 ```powershell
 python -m pip install -e '.[research,mcp]'
-$edgeGateway = 'integrations/advanced_mcp/gateway'
+$edgeGateway = 'integrations/advanced_mcp/mcp_gateway'
 uv sync --project $edgeGateway --locked --extra test
 pnpm --dir "$edgeGateway/code_runtime" install --frozen-lockfile
 ```
@@ -29,8 +29,8 @@ In a second terminal, set the same `EDGE_DRAFT_SERVICE_TOKEN` and two distinct c
 
 ```powershell
 $env:PYTHON_DOTENV_DISABLED = '1'
-& ./integrations/advanced_mcp/gateway/.venv/Scripts/python.exe -B -m advanced_mcp.cli gateway `
-  --config integrations/advanced_mcp/gateway/config/edgelab_drafts.yaml
+& ./integrations/advanced_mcp/mcp_gateway/.venv/Scripts/python.exe -B -m mcp_gateway.cli gateway `
+  --config integrations/advanced_mcp/mcp_gateway/config/edgelab_drafts.yaml
 ```
 
 Connect an MCP client to `http://127.0.0.1:8800/mcp` using Streamable HTTP. The reader can prepare a preview for `shared-trend` or `spread-level-shift`. An operator uses the workflow HTTP routes at the same address with the operator token. Ordinary MCP calls can read previews, receipts, readiness, and handoffs as their role permits. A draft save requires the durable workflow and exact operator approval.
@@ -59,7 +59,9 @@ async () => {
 | Reconcile an uncertain save | Retrieve the exact backend receipt for the recorded `saveDraft` arguments using `getDraftReceipt`. `POST /code/workflows/{execution_id}/resolve` with `{"sequence":2,"result":{...}}` using the recorded operation sequence and exact receipt. A successful resolution returns `ready`. Call `/resume` to reuse the receipt. |
 | Hand off for research | Use `getDraftHandoff` for the saved draft. Run its fixed synthetic `capstone plan --case ...` command in the EdgeLab research environment with a separate `--journal` path before `plan`. Review the resulting candidates and use the CLI's exact run and protocol approval to execute. |
 
-A matching receipt can recover a committed save whose response was lost. If the receipt is unavailable, the workflow stays in reconciliation. For a verified rejection before a write, prepare a fresh preview and workflow. The workflow journal defaults to `gateway/runtime/edgelab-drafts-workflows.sqlite3` relative to this guide. Keep it and the draft database private.
+A matching receipt can recover a committed save whose response was lost. If the receipt is unavailable, the workflow stays in reconciliation. For a verified rejection before a write, prepare a fresh preview and workflow. The workflow journal defaults to `mcp_gateway/runtime/edgelab-drafts-workflows.sqlite3` relative to this guide. Keep it and the draft database private.
+
+Gateway workflow bindings include the source, dependency locks, and configuration paths. Use the original verified gateway checkout and configuration at their original paths to resume or reconcile a workflow created before the rename.
 
 ## Run the report profile
 
@@ -85,8 +87,8 @@ In a separate terminal, set the same `EDGELAB_READER_SERVICE_TOKEN` and a distin
 
 ```powershell
 $env:PYTHON_DOTENV_DISABLED = '1'
-& ./integrations/advanced_mcp/gateway/.venv/Scripts/python.exe -B -m advanced_mcp.cli gateway `
-  --config integrations/advanced_mcp/gateway/config/edgelab_research.yaml
+& ./integrations/advanced_mcp/mcp_gateway/.venv/Scripts/python.exe -B -m mcp_gateway.cli gateway `
+  --config integrations/advanced_mcp/mcp_gateway/config/edgelab_research.yaml
 ```
 
 Connect the MCP client to `http://127.0.0.1:8798/mcp` with the reader token. Use `edgelab__listRuns` and `edgelab__getRunReport` to compare the recorded verdicts, Engle–Granger and CUSUM p-values, Critic rules, and evidence hashes. The results are in-sample synthetic findings.
@@ -97,6 +99,6 @@ The tests generate their own temporary tokens and stores, launch both loopback p
 
 ```powershell
 $env:EDGELAB_TEST_PYTHON = (Get-Command python).Source
-& ./integrations/advanced_mcp/gateway/.venv/Scripts/python.exe -B -m pytest `
-  integrations/advanced_mcp/gateway/tests -q
+& ./integrations/advanced_mcp/mcp_gateway/.venv/Scripts/python.exe -B -m pytest `
+  integrations/advanced_mcp/mcp_gateway/tests -q
 ```

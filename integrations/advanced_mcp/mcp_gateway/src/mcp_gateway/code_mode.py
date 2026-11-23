@@ -236,7 +236,7 @@ class CodeSurface:
         finally:
             user = principal.get()
             self.gateway.code_runs.labels(mode, outcome).inc()
-            logging.getLogger("advanced_mcp.audit").info(json.dumps({"event": "code_execution",
+            logging.getLogger("mcp_gateway.audit").info(json.dumps({"event": "code_execution",
                 "subject": user.subject if user else "unauthenticated", "mode": mode,
                 "outcome": outcome, "seconds": round(time.monotonic() - started, 6)}))
 

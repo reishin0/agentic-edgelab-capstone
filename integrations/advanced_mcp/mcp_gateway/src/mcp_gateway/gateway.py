@@ -25,7 +25,7 @@ from .config import Settings
 from .connectors import create_connector
 from .exchange import TokenExchange
 
-log = logging.getLogger("advanced_mcp.audit")
+log = logging.getLogger("mcp_gateway.audit")
 # An explicit empty registry supports local schema references but has no network retriever.
 SCHEMA_REGISTRY = Registry()
 
@@ -54,7 +54,7 @@ class Gateway:
             if settings.durable.database:
                 from .durable import DurableWorkflows
                 self.workflows = DurableWorkflows(self.code_surface)
-        self.server = Server("advanced-mcp", version="0.1.0", instructions="Tools are named backend__tool. Use gateway_search_tools to find authorized tools. Failed calls are never automatically retried.")
+        self.server = Server("mcp_gateway", version="0.1.0", instructions="Tools are named backend__tool. Use gateway_search_tools to find authorized tools. Failed calls are never automatically retried.")
         self.server.list_tools()(self.advertised_tools)
         # Authorization and input validation run together below; SDK's shared tool cache is not a policy boundary.
         self.server.call_tool(validate_input=False)(self.call_code_tool if self.code_surface else self.call_tool)
@@ -293,7 +293,7 @@ def create_app(settings: Settings):
                 gateway.workflows.journal.close()
 
     async def health(request):
-        return JSONResponse({"status": "alive", "service": "advanced-mcp"})
+        return JSONResponse({"status": "alive", "service": "mcp_gateway"})
 
     async def ready(request):
         async def check(name, pool):

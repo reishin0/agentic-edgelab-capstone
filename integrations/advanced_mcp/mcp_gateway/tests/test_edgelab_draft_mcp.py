@@ -19,7 +19,7 @@ from mcp.client.streamable_http import streamable_http_client
 import pytest
 import yaml
 
-from advanced_mcp.code_mode import CodeModeError, node_executable
+from mcp_gateway.code_mode import CodeModeError, node_executable
 
 
 GATEWAY_ROOT = Path(__file__).resolve().parents[1]
@@ -37,7 +37,7 @@ DRAFT = {"template_id": "cointegration-fixture", "case": "shared-trend",
 FAULT_GATEWAY = """
 from pathlib import Path
 import sys
-from advanced_mcp.openapi_connector import OpenAPIConnector
+from mcp_gateway.openapi_connector import OpenAPIConnector
 
 fault_request = sys.argv.pop(1)
 save_calls = Path(sys.argv.pop(1))
@@ -55,7 +55,7 @@ async def lose_response(self, operation, *args, **kwargs):
     return reply
 
 OpenAPIConnector.request = lose_response
-from advanced_mcp.cli import main
+from mcp_gateway.cli import main
 main()
 """
 
@@ -183,7 +183,7 @@ def test_authenticated_draft_restarts_and_reconciles_without_replay(tmp_path):
     fault = str(uuid4())
     save_calls = tmp_path / "save-calls.txt"
     gateway_args = ["gateway", "--config", str(config)]
-    gateway_command = [sys.executable, "-B", "-m", "advanced_mcp.cli", *gateway_args]
+    gateway_command = [sys.executable, "-B", "-m", "mcp_gateway.cli", *gateway_args]
     fault_command = [sys.executable, "-B", "-c", FAULT_GATEWAY, fault, str(save_calls), *gateway_args]
     gateway_env = {**environment, **tokens, "PYTHON_DOTENV_DISABLED": "1"}
     draft_db = tmp_path / "drafts.sqlite3"
@@ -205,6 +205,7 @@ def test_authenticated_draft_restarts_and_reconciles_without_replay(tmp_path):
 
         with running(gateway_command, tmp_path, gateway_env, "gateway.log") as first:
             wait_for_health(http, gateway, first)
+            assert http.get(gateway + "/healthz").json()["service"] == "mcp_gateway"
             assert http.post(gateway + "/mcp", json={}).status_code == 401
             assert http.post(gateway + "/code/workflows", json={}).status_code == 401
             read_code = "async () => connectors.edgelab.previewDraft({body: " + json.dumps(DRAFT) + "})"

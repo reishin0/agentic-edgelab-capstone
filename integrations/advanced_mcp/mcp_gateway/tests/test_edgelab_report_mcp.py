@@ -91,7 +91,8 @@ async def assert_mcp_scope(url, token, reports=None):
         streamable_http_client(url, http_client=http) as (read, write, _),
         ClientSession(read, write) as client,
     ):
-        await client.initialize()
+        initialization = await client.initialize()
+        assert initialization.serverInfo.name == "mcp_gateway"
         names = {tool.name for tool in (await client.list_tools()).tools}
         if reports is None:
             assert names == {"gateway_search_tools"}
@@ -151,7 +152,7 @@ def test_authenticated_research_profile_serves_canonical_reports_read_only(tmp_p
     config.write_text(yaml.safe_dump(profile), encoding="utf-8")
 
     tokens = {name: secrets.token_urlsafe(32) for name in (READER, SERVICE, UNSCOPED)}
-    gateway_command = [sys.executable, "-B", "-m", "advanced_mcp.cli", "gateway", "--config", str(config)]
+    gateway_command = [sys.executable, "-B", "-m", "mcp_gateway.cli", "gateway", "--config", str(config)]
     adapter_command = [
         python, "-B", "-m", "integrations.advanced_mcp.report_service", "--journal", str(journal),
         "--manifest", str(manifest), "--token-env", "--port", str(adapter_port),
