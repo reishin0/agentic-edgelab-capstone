@@ -82,6 +82,24 @@ reconfigure a model server ::
     python -m research.workflow_comparison.benchmark run --mode lm-studio --base-url http://127.0.0.1:1234/v1 --model MODEL_ID --output measured
     python -m research.workflow_comparison.benchmark score --input measured
 
+For a model such as Ornith that can use its completion budget for reasoning,
+opt in to ``--reasoning-off``. The loopback endpoint must honor
+``reasoning_effort="none"`` and return the exact requested model ID, a normal
+completion (``finish_reason="stop"``), and an explicit integer zero in
+``usage.completion_tokens_details.reasoning_tokens``.
+The strict JSON schema, temperature, budgets and scoring rules still apply.
+Receipt failures count as model response failures and leave the verdict
+unresolved.
+
+Use a smoke run to check the endpoint and its receipts before the full run.
+Confirm that both model arms have zero failed cases and complete usage
+accounting in the smoke score. Use a fresh directory for the full run ::
+
+    python -m research.workflow_comparison.benchmark run --mode lm-studio --base-url http://127.0.0.1:1234/v1 --model MODEL_ID --reasoning-off --smoke --output reasoning-smoke
+    python -m research.workflow_comparison.benchmark score --input reasoning-smoke
+    python -m research.workflow_comparison.benchmark run --mode lm-studio --base-url http://127.0.0.1:1234/v1 --model MODEL_ID --reasoning-off --output reasoning-measured
+    python -m research.workflow_comparison.benchmark score --input reasoning-measured
+
 Provide a new output directory for each run. The --smoke flag uses four
 cases to check the transport and artifact paths. It never qualifies. The
 market holdout stays locked.

@@ -201,8 +201,11 @@ def phase_questions(case: dict, evaluation: dict):
 
 
 class MeteredTransport:
-    def __init__(self, mode: str) -> None:
+    def __init__(self, mode: str, *, reasoning_off: bool = False) -> None:
+        if reasoning_off and mode != "lm-studio":
+            raise ValueError("Reasoning-off mode requires a local LM Studio endpoint")
         self.mode = mode
+        self.reasoning_off = reasoning_off
         self.calls: list[dict] = []
 
     def __call__(self, url: str, headers: dict, payload: dict, timeout: float) -> dict:
@@ -210,6 +213,8 @@ class MeteredTransport:
                 or payload["temperature"] != 0
                 or len(payload["messages"][-1]["content"]) > MAX_PROMPT_CHARS):
             raise ProviderError("Model request exceeded benchmark limits")
+        if self.reasoning_off:
+            payload = {**payload, "reasoning_effort": "none"}
         call = {"request": payload, "timeout_seconds": timeout}
         self.calls.append(call)
         started = perf_counter()
@@ -222,6 +227,8 @@ class MeteredTransport:
             usage = reply.get("usage", {})
             call["usage"] = {key: usage[key] for key in ("prompt_tokens", "completion_tokens")
                              if isinstance(usage, dict) and type(usage.get(key)) is int and usage[key] >= 0}
+            if self.reasoning_off:
+                verify_reasoning_off(call, reply)
             if call["usage"].get("completion_tokens", 0) > MAX_COMPLETION_TOKENS:
                 raise ProviderError("Model returned usage beyond the completion limit")
             return reply
@@ -230,6 +237,23 @@ class MeteredTransport:
             raise
         finally:
             call["wall_seconds"] = perf_counter() - started
+
+
+def verify_reasoning_off(call: dict, reply: dict) -> None:
+    choices = reply.get("choices")
+    choice = choices[0] if isinstance(choices, list) and len(choices) == 1 else None
+    finish_reason = choice.get("finish_reason") if isinstance(choice, dict) else None
+    usage = reply.get("usage")
+    details = usage.get("completion_tokens_details") if isinstance(usage, dict) else None
+    reasoning_tokens = details.get("reasoning_tokens") if isinstance(details, dict) else None
+    call["response_receipt"] = {"finish_reason": finish_reason, "reasoning_tokens": reasoning_tokens}
+    if not isinstance(choice, dict):
+        raise ProviderError("LM Studio returned a malformed choices array")
+    if finish_reason != "stop":
+        raise ProviderError("LM Studio did not report a normal completion")
+    if (reply.get("model") != call["request"]["model"]
+            or type(reasoning_tokens) is not int or reasoning_tokens != 0):
+        raise ProviderError("LM Studio did not verify reasoning was off for the selected model")
 
 
 def deterministic_report(case: dict, evaluation: dict) -> dict:
@@ -262,8 +286,9 @@ def model_report(model, case: dict, evaluation: dict) -> tuple[dict, list[dict]]
     return report, trace
 
 
-def arm_result(arm: str, case: dict, evaluation: dict, mode: str, base_url: str, model_id: str) -> tuple[dict, dict]:
-    transport = MeteredTransport(mode)
+def arm_result(arm: str, case: dict, evaluation: dict, mode: str, base_url: str, model_id: str, *,
+               reasoning_off: bool = False) -> tuple[dict, dict]:
+    transport = MeteredTransport(mode, reasoning_off=reasoning_off)
     started, cpu = perf_counter(), process_time()
     if arm == "deterministic":
         report, trace = deterministic_report(case, evaluation), []
@@ -281,10 +306,12 @@ def arm_result(arm: str, case: dict, evaluation: dict, mode: str, base_url: str,
     }
 
 
-def run(output: Path, mode: str, base_url: str, model_id: str, smoke: bool) -> None:
+def run(output: Path, mode: str, base_url: str, model_id: str, smoke: bool, *, reasoning_off: bool = False) -> None:
     if (os.getenv("CREWAI_DISABLE_TELEMETRY", "").lower() not in {"true", "1"}
             or os.getenv("PYTHON_DOTENV_DISABLED") != "1" or os.getenv("OTEL_SDK_DISABLED", "").lower() != "true"):
         raise ValueError("Use the isolated process settings specified in PROTOCOL.rst")
+    if reasoning_off and mode != "lm-studio":
+        raise ValueError("Reasoning-off mode requires a local LM Studio endpoint")
     protocol = frozen_protocol()
     cases = fixtures(smoke)
     study = {
@@ -292,6 +319,8 @@ def run(output: Path, mode: str, base_url: str, model_id: str, smoke: bool) -> N
         "fixture_fingerprint": fingerprint(cases), "mode": mode, "model_id": model_id,
         "loopback_base_url": base_url if mode == "lm-studio" else None, "smoke": smoke,
     }
+    if reasoning_off:
+        study["reasoning_off"] = True
     output.mkdir(parents=True, exist_ok=False)
     write_json(output / "study.json", study)
     rng = random.Random(SEED + 1)
@@ -303,7 +332,8 @@ def run(output: Path, mode: str, base_url: str, model_id: str, smoke: bool) -> N
         evidence[case_id] = {key: value for key, value in evaluation.items() if key != "gold"}
         for arm in rng.sample(ARMS, len(ARMS)):
             report_id = f"{rng.getrandbits(100):025x}"
-            report, execution = arm_result(arm, case, evaluation, mode, base_url, model_id)
+            report, execution = arm_result(arm, case, evaluation, mode, base_url, model_id,
+                                           reasoning_off=reasoning_off)
             reports[report_id] = {"case_id": case_id, **report}
             allocation[report_id] = {"arm": arm, **execution}
         print(f"Completed {len(evidence)}/{len(cases)} paired cases", flush=True)
@@ -398,6 +428,8 @@ def main() -> None:
     runner.add_argument("--model")
     runner.add_argument("--output", type=Path, required=True)
     runner.add_argument("--smoke", action="store_true")
+    runner.add_argument("--reasoning-off", action="store_true",
+                        help="Ask LM Studio for reasoning off and verify its response receipts")
     scorer = commands.add_parser("score")
     scorer.add_argument("--input", type=Path, required=True)
     args = parser.parse_args()
@@ -412,8 +444,10 @@ def main() -> None:
     else:
         if args.base_url or args.model:
             parser.error("The stub accepts no endpoint or model settings")
+        if args.reasoning_off:
+            parser.error("--reasoning-off requires --mode lm-studio")
         base_url, model = "http://127.0.0.1:1234/v1", "offline-first-option-stub"
-    run(args.output, args.mode, base_url, model, args.smoke)
+    run(args.output, args.mode, base_url, model, args.smoke, reasoning_off=args.reasoning_off)
 
 
 if __name__ == "__main__":
