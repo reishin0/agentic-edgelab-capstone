@@ -236,7 +236,7 @@ applicable evidence causes abstention. Source quote checking is not automated:
 the notes are paraphrases and the connector verifies them against the
 versioned corpus.
 
-MCP gateway and stdio interface
+MCP Gateway and stdio interface
 -------------------------------
 
 EdgeLab's stdio service uses allowlisted discovery and dispatch. To start

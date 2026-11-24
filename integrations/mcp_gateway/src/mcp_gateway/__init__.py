@@ -1,1 +1,1 @@
-"""A tools-focused MCP gateway built on the official MCP SDK."""
+"""A tools-focused MCP Gateway built on the official MCP SDK."""

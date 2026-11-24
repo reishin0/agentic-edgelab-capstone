@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="mcp-gateway", description="MCP gateway")
+    parser = argparse.ArgumentParser(prog="mcp-gateway", description="MCP Gateway")
     parser.add_argument("command", choices=["init", "gateway", "math", "knowledge", "inventory"])
     parser.add_argument("--config", type=Path, help="Gateway profile YAML path")
     parser.add_argument("--port", type=int)

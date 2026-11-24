@@ -1,4 +1,4 @@
-# MCP gateway source
+# MCP Gateway source
 
 The bundled gateway traces to commit `edaf21b` (Add durable workflows with approval and restart-safe resume). The
 November 23, 2026 EdgeLab draft candidate supplied the Python package and the

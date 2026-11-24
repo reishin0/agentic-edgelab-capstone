@@ -1,4 +1,4 @@
-"""Port of advanced_mcp's transactional, non-replaying call ledger pattern."""
+"""Transactional, non-replaying call ledger adapted from MCP Gateway."""
 
 from collections.abc import Iterator
 from contextlib import contextmanager

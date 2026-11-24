@@ -1,4 +1,4 @@
-# MCP gateway in EdgeLab
+# MCP Gateway in EdgeLab
 
 EdgeLab includes the [`mcp_gateway` package](SOURCE.md) and two loopback profiles. The report profile serves verified synthetic research evidence. The draft profile implements authenticated operator approval, receipt reconciliation, and resume for synthetic draft saves. The gateway workflow database, draft database, and EdgeLab scientific journal each have their own purpose and file.
 
