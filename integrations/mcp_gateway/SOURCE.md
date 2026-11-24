@@ -1,7 +1,6 @@
-# Advanced MCP source
+# MCP Gateway source
 
-This copy comes from the sibling `advanced_mcp` project, based on commit
-`edaf21b` (Add durable workflows with approval and restart-safe resume). The
+The bundled gateway traces to commit `edaf21b` (Add durable workflows with approval and restart-safe resume). The
 November 23, 2026 EdgeLab draft candidate supplied the Python package and the
 draft profile. Its changes to `code_mode.py`, `config.py`, `durable.py`, and
 `gateway.py` bind draft saves to exact operator approval and require a

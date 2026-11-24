@@ -33,7 +33,7 @@ def knowledge_server(data_dir: Path, port=8767):
     database = data_dir / "notes.sqlite3"
     with sqlite3.connect(database) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS notes (id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL)")
-        connection.execute("INSERT OR IGNORE INTO notes VALUES (?, ?, ?)", ("gateway", "MCP gateway", "One gateway centralizes discovery, policy and observability for multiple MCP backends."))
+        connection.execute("INSERT OR IGNORE INTO notes VALUES (?, ?, ?)", ("gateway", "MCP Gateway", "One gateway centralizes discovery, policy and observability for multiple MCP backends."))
         connection.execute("INSERT OR IGNORE INTO notes VALUES (?, ?, ?)", ("scaling", "Scaling boundaries", "Bound queues and isolate failed backends. Measure throughput before making capacity claims."))
     server = FastMCP("demo-knowledge", host="127.0.0.1", port=port, json_response=True, stateless_http=True)
 

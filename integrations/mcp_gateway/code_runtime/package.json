@@ -1,5 +1,5 @@
 {
-  "name": "advanced-mcp-code-runtime",
+  "name": "mcp-gateway-code-runtime",
   "version": "0.1.0",
   "private": true,
   "type": "module",

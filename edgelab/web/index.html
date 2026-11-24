@@ -7,33 +7,44 @@
   <link rel="stylesheet" href="/ui.css">
   <script src="/ui.js" defer></script>
   <script src="/settings.js" defer></script>
+  <script src="/pair-console.js" defer></script>
 </head>
 <body>
   <header class="bar">
     <div class="shell top">
-      <a class="brand" id="dashboard-home" href="#overview"><span class="mark" aria-hidden="true">E</span> EdgeLab</a>
-      <div class="controls">
-        <label for="run-select">Run</label><select id="run-select" disabled><option>Loading runs</option></select>
-        <button id="refresh" title="Refresh local evidence" aria-label="Refresh local evidence">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.2 7a7 7 0 0 1 12-1L20 12M4 12l1.8 6a7 7 0 0 0 12-1"/></svg>
-        </button>
-      </div>
+      <a class="brand" id="dashboard-home" href="#overview"><span class="mark" aria-hidden="true">E</span><span class="brand-name">EdgeLab</span></a>
       <div class="header-actions">
-        <span class="status"><i></i> Local read-only</span>
+        <span class="status"><i></i> <span id="dashboard-mode">Local read-only</span></span>
         <button type="button" id="open-settings" class="settings-button" aria-haspopup="dialog"
                 aria-controls="research-settings">Settings</button>
       </div>
     </div>
     <nav class="shell view-nav" id="view-nav" aria-label="Research views">
       <a href="#overview" aria-current="page">Overview</a>
-      <a href="#leaderboard">Pairs</a>
-      <a href="#trace">Run trace</a>
       <a href="#evidence">Evidence</a>
+      <a href="#waitlist">Cointegration Test</a>
+      <a href="#trace">Run trace</a>
+      <a href="#leaderboard">Pairs</a>
       <a href="#etf-entry-costs" id="etf-entry-nav" hidden>ETF costs</a>
       <a href="#synthetic-stability">Stability study</a>
-      <a href="#waitlist">Waitlist</a>
       <a href="#checkpoints">Checkpoints</a>
     </nav>
+    <div class="shell monitor-toolbar">
+      <h1 id="overview-title">Relationship monitor</h1>
+      <div class="run-picker">
+        <label for="run-select">View saved cointegration results</label>
+        <div class="run-controls">
+          <select id="run-select" disabled><option>Loading runs</option></select>
+          <button type="button" id="refresh" title="Refresh saved results" aria-label="Refresh saved results">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.2 7a7 7 0 0 1 12-1L20 12M4 12l1.8 6a7 7 0 0 0 12-1"/></svg>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <p id="run-loading" class="shell header-message" role="status" hidden></p>
+    <p id="load-error" class="shell header-message alert" role="alert" hidden></p>
+    <p id="pair-ready" class="shell header-message" role="status"></p>
   </header>
   <dialog id="research-settings" class="settings-dialog" aria-labelledby="settings-title">
     <div class="settings-heading">
@@ -65,6 +76,7 @@
           <p id="settings-model-detail" class="settings-help"></p>
         </div>
         <p id="settings-model-status" class="settings-help" role="status"></p>
+        <p id="settings-model-test-status" class="settings-help" role="status"></p>
       </div>
     </section>
     <section aria-labelledby="settings-evidence-title">
@@ -91,7 +103,6 @@
     </section>
   </dialog>
   <main id="view-content" tabindex="0">
-    <p id="load-error" class="alert" role="alert" hidden></p>
     <section id="overview" data-view aria-labelledby="overview-title" tabindex="-1">
       <p class="liability-notice">
         <strong>Liability disclaimer</strong>
@@ -100,8 +111,40 @@
         and contributors disclaim liability for losses arising from use of or reliance on this dashboard
         or its outputs.
       </p>
-      <div class="intro"><div class="eyebrow">Research operations</div><h1 id="overview-title">Relationship monitor</h1></div>
+      <details class="panel view-guide">
+        <summary>What each tab shows</summary>
+        <div class="view-guide-body">
+          <p>Choose a saved run above. Overview, Evidence, and Run trace follow that selection.
+            Refresh reloads saved results and local snapshots.</p>
+          <dl>
+            <dt>Overview</dt><dd>The selected run’s verdict and the decisions recorded for each role.</dd>
+            <dt><a href="#evidence">Evidence</a></dt><dd>The approved A/B price series, fitted spread, and statistical tests.</dd>
+            <dt><a href="#waitlist">Cointegration Test</a></dt><dd>Browse candidate assets and prepare a new pair test when the console is enabled.</dd>
+            <dt><a href="#trace">Run trace</a></dt><dd>The recorded tool calls, review reasons, and method sources.</dd>
+            <dt><a href="#leaderboard">Pairs</a></dt><dd>Saved screening results for candidate pairs.</dd>
+            <dt>ETF costs</dt><dd>A separate comparison of modeled ETF purchase costs, when loaded.</dd>
+            <dt><a href="#synthetic-stability">Stability study</a></dt><dd>A separate benchmark using simulated spreads.</dd>
+            <dt><a href="#checkpoints">Checkpoints</a></dt><dd>What each course assignment asks for and how EdgeLab applied it.</dd>
+          </dl>
+        </div>
+      </details>
       <article id="outcome" class="panel outcome" aria-label="Recorded research outcome" aria-live="polite" hidden></article>
+      <section id="agent-coordination" aria-labelledby="agent-coordination-title">
+        <div class="section-head">
+          <div><h2 id="agent-coordination-title">Agent coordination</h2><p id="agent-run" class="agent-run"></p></div>
+          <a href="#trace">Read the run trace</a>
+        </div>
+        <div class="flow">
+          <div><h3>Planner</h3><p>Proposes test protocols using reviewed methods before seeing prices.</p>
+            <div id="planner-record" class="agent-record"></div></div>
+          <div><h3>Researcher and Controller</h3><p>The researcher approves an exact protocol. The Controller checks it and runs the permitted tools.</p>
+            <div id="controller-record" class="agent-record"></div></div>
+          <div><h3>Critic</h3><p>Reviews each result against the rules agreed before the run.</p>
+            <div id="critic-record" class="agent-record"></div></div>
+          <div><h3>Reporter</h3><p>Summarizes the saved verdict and cites the evidence it uses.</p>
+            <div id="reporter-record" class="agent-record"></div></div>
+        </div>
+      </section>
       <div id="metrics" class="metrics" aria-label="Run summary"></div>
       <article id="lag-panel" class="panel wide" aria-labelledby="lag-title" hidden>
         <div class="panel-head">
@@ -113,13 +156,6 @@
         </div>
         <div id="lag-details" class="lag-details" aria-live="polite"></div>
       </article>
-      <div class="section-head"><h2>Agent coordination</h2><span>One LangGraph controller</span></div>
-      <div class="flow">
-        <div><span>01 / PROPOSE</span><strong>Planner</strong><small>Blinded protocol &middot; bounded ToT</small></div>
-        <div><span>02 / AUTHORIZE</span><strong>Controller + human</strong><small>Freeze the plan &middot; validate calls</small></div>
-        <div><span>03 / REVIEW</span><strong>Critic</strong><small>Evidence &middot; deterministic rules</small></div>
-        <div><span>04 / REPORT</span><strong>Reporter</strong><small>Recorded verdict &middot; evidence references</small></div>
-      </div>
       <div id="providers" class="providers" aria-label="Provider status"></div>
       <section id="news" aria-labelledby="news-title">
         <div class="section-head"><h2 id="news-title">Market news</h2><span>Context only &middot; excluded from decisions</span></div>
@@ -133,7 +169,12 @@
     <section id="evidence" data-view aria-labelledby="evidence-title" tabindex="-1" hidden>
       <div class="section-head"><h2 id="evidence-title">Research evidence</h2><span id="window"></span></div>
       <div class="split">
-        <article class="panel"><div class="panel-head"><h3>Approved series</h3><span class="legend"><b class="a"></b> A <b class="b"></b> B</span></div><div id="series" class="plot"></div></article>
+        <article class="panel">
+          <div class="panel-head"><h3>Approved series</h3>
+            <span class="legend"><span id="series-a-label" class="a">A</span><span id="series-b-label" class="b">B</span></span>
+          </div>
+          <div id="series" class="plot"></div>
+        </article>
         <article class="panel"><div class="panel-head"><h3>Fitted spread</h3><span>A on B &middot; OLS residual</span></div><div id="spread" class="plot"></div></article>
       </div>
       <article class="panel wide"><div class="panel-head"><h3>Statistical diagnostics</h3><span>Declared threshold &alpha; = 0.05</span></div><div id="stats"></div></article>
@@ -142,9 +183,10 @@
       <div class="section-head">
         <h2 id="etf-entry-title">ETF entry costs</h2>
         <button type="button" id="etf-entry-tip" class="etf-tip-button" aria-haspopup="dialog"
-                aria-controls="etf-entry-dialog">How to read</button>
+                aria-controls="etf-entry-dialog" hidden>How to read</button>
       </div>
-      <article class="panel etf-entry-panel">
+      <p id="etf-entry-status" class="panel empty" role="status" hidden></p>
+      <article id="etf-entry-panel" class="panel etf-entry-panel" hidden>
         <div class="panel-head etf-entry-meta">
           <p id="etf-entry-scope"></p><span id="etf-entry-clocks"></span>
         </div>
@@ -179,7 +221,7 @@
       <div id="stability-results"></div>
     </section>
     <section id="trace" data-view aria-labelledby="trace-title" tabindex="-1" hidden>
-      <div class="section-head"><h2 id="trace-title">Reason &rarr; Act &rarr; Observe &rarr; Review</h2><span>Recorded decisions, not private reasoning</span></div>
+      <div class="section-head"><h2 id="trace-title">Run trace</h2><span>Recorded steps and decision reasons</span></div>
       <div id="decision" class="decision"></div>
       <div class="split">
         <article class="panel"><div class="panel-head"><h3>Tool and decision ledger</h3><span>Append order</span></div><div id="events"></div></article>
@@ -187,8 +229,51 @@
       </div>
       <article class="panel wide"><div class="panel-head"><h3>Method evidence</h3><span>Versioned public sources</span></div><div id="methods"></div></article>
     </section>
-    <section id="waitlist" data-view aria-labelledby="waitlist-title" tabindex="-1" hidden>
-      <div class="section-head"><h2 id="waitlist-title">Asset waitlists</h2><span id="waitlist-state">No stock waitlist loaded</span></div>
+    <section id="waitlist" data-view aria-labelledby="cointegration-title" tabindex="-1" hidden>
+      <div class="section-head"><h2 id="cointegration-title">Cointegration Test</h2><span id="waitlist-state">No stock waitlist loaded</span></div>
+      <article id="pair-console" class="panel pair-console" aria-labelledby="pair-console-title" hidden>
+        <div class="panel-head"><h3 id="pair-console-title">Test a pair</h3><span id="pair-stage"></span></div>
+        <form id="pair-setup" class="pair-console-body">
+          <div class="pair-fields">
+            <label for="pair-a">Asset A<input id="pair-a" type="text" list="pair-assets" placeholder="Search ticker" required autocomplete="off" spellcheck="false"></label>
+            <label for="pair-b">Asset B<input id="pair-b" type="text" list="pair-assets" placeholder="Search ticker" required autocomplete="off" spellcheck="false"></label>
+            <datalist id="pair-assets"></datalist>
+          </div>
+          <label id="pair-history-field" for="pair-history" hidden>History
+            <select id="pair-history"></select>
+          </label>
+          <div id="pair-capture-dates" class="pair-fields" hidden>
+            <label for="pair-start">First session<input id="pair-start" type="date" value="2025-01-02" min="2025-01-02" max="2025-10-31"></label>
+            <label for="pair-end">Last session<input id="pair-end" type="date" value="2025-10-31" min="2025-01-02" max="2025-10-31"></label>
+          </div>
+          <p id="pair-input-note" class="pair-note">Choose two distinct assets from the waitlists.</p>
+          <label for="pair-ornith" class="pair-adviser">
+            <input id="pair-ornith" type="checkbox"> Ask local Ornith to recommend a lag policy
+          </label>
+          <div class="pair-actions">
+            <button id="pair-prepare" type="submit" disabled>Prepare plan</button>
+            <button id="pair-retry" type="button" hidden>Retry console</button>
+          </div>
+        </form>
+        <div id="pair-review" class="pair-console-body pair-review" hidden>
+          <label for="pair-candidate">Lag policy<select id="pair-candidate"></select></label>
+          <p class="pair-note">Choose a policy and review its exact protocol digest before approving the test.</p>
+          <div id="pair-approval-summary" class="pair-note" hidden>
+            <p>Run <code id="pair-run-id"></code></p>
+            <p>Protocol SHA-256 <code id="pair-digest"></code></p>
+          </div>
+          <details id="pair-protocol-details" hidden>
+            <summary>Review full protocol</summary>
+            <pre id="pair-protocol" class="pair-output pair-protocol" aria-label="Selected protocol" tabindex="0"></pre>
+          </details>
+          <div class="pair-actions">
+            <button id="pair-approve" type="button" disabled>Approve protocol and run</button>
+            <button id="pair-discard" type="button">Set plan aside</button>
+          </div>
+        </div>
+        <p id="pair-error" class="pair-error" hidden></p>
+        <pre id="pair-output" class="pair-output" aria-label="Cointegration console output" tabindex="0" hidden></pre>
+      </article>
       <article class="panel">
         <div class="panel-head waitlist-head">
           <div id="waitlist-source">Local research universe</div>
@@ -206,13 +291,82 @@
       <section id="cross-assets" class="split wide" aria-label="FX and crypto waitlists" hidden></section>
     </section>
     <section id="checkpoints" data-view aria-labelledby="checkpoints-title" tabindex="-1" hidden>
-      <div class="section-head"><h2 id="checkpoints-title">Checkpoint coverage</h2><span>Design vs. implementation</span></div>
+      <div class="section-head"><h2 id="checkpoints-title">Capstone checkpoints</h2><span>November 2026</span></div>
       <div class="panel coverage">
-        <div><b>1.1</b><h3>Local architecture</h3><p>LM Studio is the default adviser in Settings. Planner advice is optional. The controller and its Critic apply deterministic evidence rules.</p></div>
-        <div><b>2.1</b><h3>Research loop</h3><p>Approval, typed tools, milestone review and durable evidence. Holdout evaluation, Johansen/Gregory–Hansen and cloud fallback are not enabled.</p></div>
-        <div><b>3.1</b><h3>Grounded retrieval</h3><p>Reviewed local corpus or optional Pinecone retrieval. Verbatim quote verification and access-control demonstrations remain open.</p></div>
-        <div><b>4.1</b><h3>Structured planning</h3><p>Outcome-blind beam search, retained pruning reasons and MCP catalog/trace. CrewAI tasks and broader LangChain adapters remain open.</p></div>
-        <div><b>5.1</b><h3>Coordination</h3><p>Three roles, one controller, versioned Critic findings and one-way reporting. Authenticated multi-user escalation and baseline comparisons remain open.</p></div>
+        <p class="checkpoint-intro">The six required course assignments guide the development of one capstone agent.
+          Each applies a module’s concepts to the project and builds toward the final report and presentation.
+          <a href="https://execonline.cs.cmu.edu/agentic-ai-program">Program outline</a>
+        </p>
+        <div>
+          <b>1.1</b><h3>Project scoping and initial agent design</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Define the problem, who the agent serves and what it should do.</p>
+            <p><strong>EdgeLab</strong> Scoped an LM Studio assistant to help researchers assess long-run price
+              relationships, with Python handling the calculations. In the reported synthetic run, Ornith supplied
+              one structured choice. EdgeLab saved two eligible protocol candidates and stopped for approval.</p>
+          </div>
+        </div>
+        <div>
+          <b>2.1</b><h3>Agent design refinement</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Refine how the agent makes decisions, what it remembers and which
+              tools it uses.</p>
+            <p><strong>EdgeLab</strong> The design added ReAct-style branching, budgets and a ledger to retain each
+              trial when a failed prerequisite redirects work. The implemented CLI requires approval of the exact
+              saved run and protocol digest before execution. LiteLLM role routing, cloud-to-local failover and
+              native LangGraph checkpointing remain deployment options.</p>
+          </div>
+        </div>
+        <div>
+          <b>3.1</b><h3>RAG and retrieval design</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Choose what knowledge the agent should retrieve, how it finds it and
+              how it uses source evidence to ground its decisions.</p>
+            <p><strong>EdgeLab</strong> Added reviewed, versioned method notes and source locators. Planning defaults
+              to bundled notes. Optional Pinecone planning fetches ADF, KPSS and Engle–Granger by exact ID and
+              verifies them against the reviewed corpus. Missing or mismatched evidence leaves the plan unresolved.
+              The dashboard diagnostic verified all three exact records. Its separate semantic ranking found only KPSS.</p>
+          </div>
+        </div>
+        <div>
+          <b>4.1</b><h3>Tree-of-Thought integration</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Decide where exploring several reasoning paths may help, how to
+              compare and prune them, and how to test the benefit.</p>
+            <p><strong>EdgeLab</strong> Confined Tree-of-Thought to planning to prevent outcome leakage. Beam search
+              ranks protocols before seeing asset labels or observations, using width two, four levels and up to
+              21 visits. Eligible protocol digests are saved for approval. A comparison with step-by-step planning
+              on independently judged cases remains open.</p>
+          </div>
+        </div>
+        <div>
+          <b>5.1</b><h3>Multi-agent architecture and coordination</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Define each agent’s responsibilities, what information they share and
+              how they coordinate their work.</p>
+            <p><strong>EdgeLab</strong> Put the Planner, Critic and Reporter under one controller. The benchmark
+              evaluated the advisory roles in isolation on 24 blinded synthetic cases with equal model-call budgets.
+              CrewAI scored 30.21% and the single agent scored 28.13%. The 2.08-percentage-point gain missed the
+              10-point gate.</p>
+          </div>
+        </div>
+        <div>
+          <b>6.1</b><h3>Safety guardrails and human intervention</h3>
+          <div class="checkpoint-details">
+            <p><strong>Course objective</strong> Identify failure modes, set guardrails and evaluation measures, and
+              define when a human must intervene.</p>
+            <p><strong>EdgeLab</strong> Defined interventions for ambiguous scope, evidence failures and uncertain
+              tool state. A reservation without a result blocks replay and dependent calls. An operator can request
+              a read-only handoff from the CLI. A hard-guard breach blocks promotion.</p>
+            <p><strong>Pilot targets</strong> Capture 100% of mandatory escalations, keep unnecessary escalations at
+              or below 15%, stop safely or recover on 100% of fault fixtures, and keep planning p95 under four
+              minutes. The pilot plan calls for measuring human review wait separately.</p>
+            <p><strong>Gateway demonstration</strong> The bundled loopback MCP Gateway served verified synthetic
+              reports and recovered an operator-approved draft save after a lost response. The operator verified
+              the original backend receipt before resuming. Scientific approval and execution stay in the CLI,
+              and the market holdout remains locked.</p>
+          </div>
+        </div>
       </div>
     </section>
     <footer>Agentic EdgeLab <span>Research only &middot; no trading or holdout authorization</span></footer>

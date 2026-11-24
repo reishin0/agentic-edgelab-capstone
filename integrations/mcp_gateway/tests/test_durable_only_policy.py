@@ -4,11 +4,11 @@ from mcp import types
 import pytest
 from pydantic import ValidationError
 
-from advanced_mcp.auth import Principal, principal
-from advanced_mcp.backend import BackendUnavailable
-from advanced_mcp.code_mode import CodeModeError
-from advanced_mcp.config import Backend, Settings
-from advanced_mcp.gateway import Gateway
+from mcp_gateway.auth import Principal, principal
+from mcp_gateway.backend import BackendUnavailable
+from mcp_gateway.code_mode import CodeModeError
+from mcp_gateway.config import Backend, Settings
+from mcp_gateway.gateway import Gateway
 
 
 WRITE, RECEIPT = "saveDraft", "getDraftReceipt"

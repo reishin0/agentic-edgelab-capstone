@@ -126,7 +126,7 @@ class DurableWorkflows:
         self.journal = WorkflowJournal(self.settings.durable.database)
 
     def contract(self):
-        sources = sorted((ROOT / "src/advanced_mcp").glob("*.py"))
+        sources = sorted(Path(__file__).resolve().parent.glob("*.py"))
         sources += [ROOT / "code_runtime/runner.mjs", ROOT / "code_runtime/pnpm-lock.yaml", ROOT / "uv.lock"]
         files = {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in sources}
         specs = {backend.name: hashlib.sha256(Path(backend.spec_file).read_bytes()).hexdigest()

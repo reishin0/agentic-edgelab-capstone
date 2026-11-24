@@ -7,7 +7,7 @@ requests_per_minute: 60
 auth:
   mode: local_tokens
   tokens:
-    - env: ADVANCED_MCP_EDGELAB_READER_TOKEN
+    - env: MCP_GATEWAY_EDGELAB_READER_TOKEN
       subject: edgelab-research-reader
       roles: [edgelab-reader]
 backends:

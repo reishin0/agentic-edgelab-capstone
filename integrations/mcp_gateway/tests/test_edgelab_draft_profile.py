@@ -6,10 +6,10 @@ import httpx
 import jsonschema
 import pytest
 
-from advanced_mcp.auth import Principal, authorized
-from advanced_mcp.backend import BackendUnavailable, OperationNotApplied
-from advanced_mcp.config import load_config
-from advanced_mcp.openapi_connector import OpenAPIConnector, compile_operations
+from mcp_gateway.auth import Principal, authorized
+from mcp_gateway.backend import BackendUnavailable, OperationNotApplied
+from mcp_gateway.config import load_config
+from mcp_gateway.openapi_connector import OpenAPIConnector, compile_operations
 
 PROFILE = Path(__file__).resolve().parents[1] / "config" / "edgelab_drafts.yaml"
 REQUEST_ID = "12345678-1234-4abc-89ab-1234567890ab"

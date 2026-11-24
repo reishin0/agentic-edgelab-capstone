@@ -5,6 +5,7 @@
   const provider = $("settings-provider"), model = $("settings-model"), filter = $("settings-model-filter");
   const free = $("settings-free"), source = $("settings-retrieval"), refresh = $("settings-refresh-models");
   const test = $("settings-test-model"), modelStatus = $("settings-model-status");
+  const testStatus = $("settings-model-test-status");
   const evidenceStatus = $("settings-retrieval-status"), command = $("settings-command");
   const copy = $("settings-copy"), copyStatus = $("settings-copy-status");
   const storage = "edgelab.research-settings.v1";
@@ -36,7 +37,7 @@
   }
 
   function updateCommand() {
-    const kind = provider.value, id = selected[kind];
+    const kind = provider.value, id = model.value;
     const choice = models.find(row => row.id === id && (kind !== "lm_studio" || row.loaded));
     const ready = kind === "none" || Boolean(choice);
     const flags = [];
@@ -58,6 +59,11 @@
     copyStatus.textContent = "";
   }
 
+  function clearModelTest() {
+    modelTest++;
+    testStatus.textContent = "";
+  }
+
   function showModelDetail() {
     const row = models.find(entry => entry.id === model.value);
     const detail = $("settings-model-detail");
@@ -75,6 +81,7 @@
   }
 
   function renderModels() {
+    const previous = model.value;
     const kind = provider.value, query = filter.value.trim().toLowerCase();
     const visible = models.filter(row => (row.name + " " + row.id).toLowerCase().includes(query));
     const placeholder = node("option", visible.length ? "Choose a model" : "No matching models");
@@ -87,6 +94,7 @@
       return item;
     }));
     model.value = visible.some(row => row.id === selected[kind]) ? selected[kind] : "";
+    if (model.value !== previous) clearModelTest();
     model.disabled = !visible.length;
     $("settings-catalog").hidden = !models.length;
     showModelDetail();
@@ -95,7 +103,7 @@
 
   async function loadCatalog() {
     const kind = provider.value, request = ++catalogRequest;
-    modelTest++;
+    clearModelTest();
     models = [];
     renderModels();
     refresh.disabled = true;
@@ -131,7 +139,7 @@
 
   function changeProvider() {
     catalogRequest++;
-    modelTest++;
+    clearModelTest();
     models = [];
     free.checked = true;
     filter.value = "";
@@ -151,7 +159,7 @@
   refresh.addEventListener("click", loadCatalog);
   free.addEventListener("change", () => {
     catalogRequest++;
-    modelTest++;
+    clearModelTest();
     models = [];
     refresh.disabled = false;
     modelStatus.textContent = "Refresh the catalog with this price filter.";
@@ -159,23 +167,25 @@
   });
   filter.addEventListener("input", renderModels);
   model.addEventListener("change", () => {
-    modelTest++;
+    clearModelTest();
     selected[provider.value] = model.value;
     save();
     showModelDetail();
     updateCommand();
   });
   test.addEventListener("click", async () => {
+    const id = model.value;
+    if (test.disabled || !id) return;
     const request = ++modelTest;
     pendingTest = request;
     test.disabled = true;
-    modelStatus.textContent = "Sending a synthetic choice test…";
+    testStatus.textContent = "Sending a synthetic choice test…";
     try {
-      const reply = await post("test-model", {provider: provider.value, model_id: selected[provider.value], free_only: free.checked});
-      if (request === modelTest) modelStatus.textContent = reply.status === "passed" ?
+      const reply = await post("test-model", {provider: provider.value, model_id: id, free_only: free.checked});
+      if (request === modelTest) testStatus.textContent = reply.status === "passed" ?
         `Synthetic choice passed · ${reply.elapsed_ms} ms.` : (reply.message || "Synthetic test did not pass.");
     } catch (error) {
-      if (request === modelTest) modelStatus.textContent = error.message;
+      if (request === modelTest) testStatus.textContent = error.message;
     } finally {
       if (request === pendingTest) pendingTest = 0;
       if (request === modelTest) updateCommand();
@@ -198,8 +208,9 @@
       const reply = await post("test-retrieval", {backend: source.value});
       if (request !== retrievalTest) return;
       const required = reply.required, elapsed = Number.isFinite(required.elapsed_ms) ? ` · ${required.elapsed_ms} ms` : "";
-      evidenceStatus.replaceChildren(node("p", `${reply.corpus_version} · ${required.verified_ids.length}/3 verified${elapsed}`));
-      if (required.missing_ids.length) {
+      const coverage = required.status === "unavailable" ? "Exact retrieval unavailable" : `${required.verified_ids.length}/3 verified`;
+      evidenceStatus.replaceChildren(node("p", `${reply.corpus_version} · ${coverage}${elapsed}`));
+      if (required.status !== "unavailable" && required.missing_ids.length) {
         evidenceStatus.append(node("p", "Missing " + required.missing_ids.map(key => names[key]).join(", ") + ". Planning will be unresolved."));
       }
       if (reply.citations.length) {
@@ -223,7 +234,16 @@
     }
   });
   copy.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(command.value); copyStatus.textContent = "Copied"; }
-    catch { command.focus(); command.select(); copyStatus.textContent = "Command selected for copying"; }
+    const text = command.value;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      if (command.value === text) copyStatus.textContent = "Copied";
+    } catch {
+      if (command.value !== text) return;
+      command.focus();
+      command.select();
+      copyStatus.textContent = "Command selected for copying";
+    }
   });
 })();

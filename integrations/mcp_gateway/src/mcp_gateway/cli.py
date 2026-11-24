@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Advanced MCP gateway")
+    parser = argparse.ArgumentParser(prog="mcp-gateway", description="MCP Gateway")
     parser.add_argument("command", choices=["init", "gateway", "math", "knowledge", "inventory"])
     parser.add_argument("--config", type=Path, help="Gateway profile YAML path")
     parser.add_argument("--port", type=int)
@@ -29,8 +29,8 @@ def main():
         if destination.exists():
             print("Existing .env preserved.")
             return
-        destination.write_text("ADVANCED_MCP_READER_TOKEN=" + secrets.token_urlsafe(32) +
-            "\nADVANCED_MCP_OPERATOR_TOKEN=" + secrets.token_urlsafe(32) + "\n", encoding="utf-8")
+        destination.write_text("MCP_GATEWAY_READER_TOKEN=" + secrets.token_urlsafe(32) +
+            "\nMCP_GATEWAY_OPERATOR_TOKEN=" + secrets.token_urlsafe(32) + "\n", encoding="utf-8")
         print("Created local tokens in .env. Keep that file private.")
     elif args.command == "math":
         math_server(args.port or 8766).run(transport="streamable-http")

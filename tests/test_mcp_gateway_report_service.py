@@ -16,7 +16,7 @@ from edgelab.planning import search
 from edgelab.reporting import report_from_journal
 from edgelab.research import ResearchService
 from edgelab.stat_tools import TOOL_SEQUENCE
-from integrations.advanced_mcp.report_service import (
+from integrations.mcp_gateway.report_service import (
     TOKEN_ENV, ReportService, StudyUnavailable, load_manifest, main, make_handler, validate_token,
 )
 from observation_fixtures import RUNTIME, bound, roots
@@ -208,12 +208,12 @@ class ReportServiceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Invalid dedicated adapter service token"):
                 validate_token(weak)
         with patch.dict("os.environ", {TOKEN_ENV: TOKEN}), patch("sys.argv", argv), redirect_stderr(StringIO()):
-            with patch("integrations.advanced_mcp.report_service.ThreadingHTTPServer") as server:
+            with patch("integrations.mcp_gateway.report_service.ThreadingHTTPServer") as server:
                 with self.assertRaises(SystemExit):
                     main()
                 server.assert_not_called()
         with patch.dict("os.environ", {TOKEN_ENV: TOKEN}), patch("sys.argv", [*argv, "--token-env"]):
-            with patch("integrations.advanced_mcp.report_service.ThreadingHTTPServer") as server:
+            with patch("integrations.mcp_gateway.report_service.ThreadingHTTPServer") as server:
                 main()
                 self.assertEqual(server.call_args.args[0], ("127.0.0.1", 9821))
                 server.return_value.__enter__.return_value.serve_forever.assert_called_once_with()

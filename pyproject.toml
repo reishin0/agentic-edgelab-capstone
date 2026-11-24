@@ -14,7 +14,7 @@ mcp = ["mcp>=1.30,<2"]
 crew = ["crewai==1.15.41"]
 
 [tool.setuptools.packages.find]
-include = ["edgelab*", "integrations.advanced_mcp"]
+include = ["edgelab*", "integrations.mcp_gateway"]
 
 [tool.setuptools.package-data]
 edgelab = ["web/*.html", "web/*.css", "web/*.js", "fixtures/*.json"]

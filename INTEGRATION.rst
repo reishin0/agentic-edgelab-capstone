@@ -11,8 +11,9 @@ implementation, not a trading system or a claim of statistical validation.
   review, and verdict. Statistical tools cover ADF/KPSS, both Engle-Granger
   directions, OLS residuals, CUSUM, ECM, and AR(1)-implied OU half-life where
   applicable.
-* **3.1 Grounding:** Eight public-source paraphrases, reviewed ingestion,
-  Pinecone embedding, filtering, reranking, and up to three verified notes.
+* **3.1 Grounding:** Eight reviewed public-source notes. Pinecone planning
+  fetches the required ADF, KPSS, and Engle–Granger records by exact ID.
+  Semantic ranking is a separate diagnostic.
 * **4.1 ToT and MCP:** Four-depth, width-two beam search over allowlisted
   decisions with retained pruning reasons and advisory votes. MCP exposes
   public notes, the tool catalog, and an optional host-selected planning trace.
@@ -26,9 +27,10 @@ to do so. From this folder in PowerShell::
 
     python -m venv .venv
     .\.venv\Scripts\python.exe -m pip install -e ".[research,mcp]"
-    .\.venv\Scripts\python.exe -B -m edgelab.capstone plan
+    .\.venv\Scripts\python.exe -B -m edgelab.capstone plan --no-model
 
-Default planning makes no provider calls and does not inspect series values.
+This command uses bundled notes and disables model advice. Planning operates
+on the protocol scope and method evidence before reading observation values.
 Review the displayed candidates and use the selected run ID and protocol
 digest in a separate command::
 
@@ -73,7 +75,7 @@ Place a version-1 JSON manifest beside the CSV. It has these fields:
 Plan using the manifest, then supply the same manifest and the exact selected
 digest to execute::
 
-    .\.venv\Scripts\python.exe -B -m edgelab.capstone plan --history-manifest PATH_TO_MANIFEST.json
+    .\.venv\Scripts\python.exe -B -m edgelab.capstone plan --history-manifest PATH_TO_MANIFEST.json --no-model
     .\.venv\Scripts\python.exe -B -m edgelab.capstone execute --run RUN_UUID --approve PROTOCOL_SHA256 --history-manifest PATH_TO_MANIFEST.json
 
 Planning reads manifest metadata only, not CSV observations. Numerical
@@ -81,7 +83,7 @@ execution binds the exact manifest and approved sample, and rejects changed
 bytes, missing sessions and holdout rows. The report and journal omit local
 file paths. Durations expressed in observations are in supplied session units
 for historical data. The holdout stays locked and must not be included in the
-CSV. This mode does not open MySQL, load external settings, or require a model.
+CSV. The example uses the supplied files and bundled methods.
 
 Paired history via Alpaca
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -127,7 +129,8 @@ local snapshot with::
 The builder ranks eligible US-listed USD equities by positive fund
 holding market value and saves exactly 1,000 distinct tickers in ignored
 storage. The JSON records the holdings date, source digest and exclusions.
-The browser's Waitlist view is read-only and does not launch screening.
+The **Cointegration Test** tab lists the saved candidate assets. The optional pair
+console can test one selected pair at a time.
 Fund holdings are a research universe proxy, not an official index
 constituent file or evidence of cointegration. Do not use a later holdings
 snapshot to define an earlier historical test universe. The synthetic
@@ -152,6 +155,26 @@ Build and open a pinned snapshot with::
 No account or order APIs are used. The dashboard shows all of these
 instruments as not tested. See STABILITY_PLAN.rst for the proposed
 separate evaluation gates. The synthetic demo does not load the snapshot.
+
+Cointegration Test console
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Enable the console with ``--pair-console-journal runtime/waitlist-pair-tests.sqlite``
+and a configured stock or cross-asset waitlist. Use a separate journal file.
+Select two instruments and choose a matching
+frozen manifest supplied at launch or previously captured by the console.
+A stock pair can also request a bounded
+Alpaca IEX capture with explicit consent and the reviewed sessions through
+October 31, 2025.
+
+The console displays the protocol bound to the run and digest before offering
+approval. Once approved, it prints execution and the verified report. A
+ready report prompts you to refresh the dashboard. The reminder clears once
+the refreshed run list includes that result. Saved plans and reports remain
+available in the console after a service restart. A prior interrupted
+execution or unresolved reservation blocks new jobs in that journal. The
+console stores new plans and results in its own journal and opens the other
+research journals read-only. Approval is local operator approval.
 
 Batch pair execution
 --------------------
@@ -213,8 +236,8 @@ applicable evidence causes abstention. Source quote checking is not automated:
 the notes are paraphrases and the connector verifies them against the
 versioned corpus.
 
-Port from advanced_mcp
----------------------
+MCP Gateway and stdio interface
+-------------------------------
 
 EdgeLab's stdio service uses allowlisted discovery and dispatch. To start
 the optional interface::
@@ -224,7 +247,7 @@ the optional interface::
 The host may bind --run-id RUN_UUID to expose that run's planning trace.
 The interface cannot approve or execute an experiment.
 
-The `bundled Advanced MCP integration <integrations/advanced_mcp/README.md>`_
+The `bundled mcp_gateway integration <integrations/mcp_gateway/README.md>`_
 runs as a separate authenticated loopback process. Its report profile reads
 pinned synthetic studies. Its draft profile binds operator approval to the
 exact save operation and reconciles uncertain saves against backend receipts
@@ -265,9 +288,11 @@ Still open
 Optional CrewAI role tasks and LCEL method retrieval are covered by
 DEPLOYMENT.rst. Broader LangChain tool adapters, multi-user identity, native graph
 checkpoints, holdout authorization and evaluation, broader statistical methods,
-and matched-budget comparisons remain future work. No LiteLLM/OpenRouter cloud
-fallback is configured. Statistical execution is currently an in-process
-controller service, not exposed as a callable MCP transport tool.
+and end-to-end matched-budget comparisons remain future work. A separate
+`matched-budget advisory comparison <research/workflow_comparison/REPORT.md>`_
+completed 24 paired synthetic cases. Cloud provider use is opt-in. The
+controller runs statistical tools in-process. MCP exposes a descriptive tool
+catalog for inspection.
 
 Research dashboard and Critic
 -----------------------------
@@ -286,9 +311,9 @@ journal explicitly to also see its runs. Repeat ``--history-manifest`` to
 opt in to plotting each corresponding approved sample. If the matching
 manifest is absent, the verdict remains visible but the chart is withheld.
 Duplicate run IDs across journals are rejected as ambiguous.
-The server binds only to loopback, has no write/approval
-API, and does not contact providers. Keep it local; it is not a multi-user
-service. The demo uses a temporary journal and never touches an existing run.
+The server binds only to loopback. The optional waitlist pair console uses
+explicit local approval, and a stock capture requires a separate opt-in.
+The demo uses a temporary journal and never touches an existing run.
 The optional ETF entry-cost panel accepts a pinned aggregate result through
 ``--etf-entry-costs PATH_TO_RESULT.json`` in read-only mode. The operator
 supplies the result separately. The dashboard verifies the result hash and

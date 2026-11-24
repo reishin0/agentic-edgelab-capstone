@@ -12,14 +12,14 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from edgelab.contracts import fingerprint
-from integrations.advanced_mcp.draft_service import DraftConflict, DraftService, DraftUnavailable, make_handler
+from integrations.mcp_gateway.draft_service import DraftConflict, DraftService, DraftUnavailable, make_handler
 
 
 TOKEN = "draft-fixture-token-A1b2c3D4e5F6g7H8"
 PATH = "/v1/drafts"
 DRAFT = {"template_id": "cointegration-fixture", "case": "shared-trend", "hypothesis": "The spread is stable."}
-SOURCE = "integrations.advanced_mcp.draft_service.release_fingerprint"
-GATES = "integrations.advanced_mcp.draft_service.METHOD_GATES"
+SOURCE = "integrations.mcp_gateway.draft_service.release_fingerprint"
+GATES = "integrations.mcp_gateway.draft_service.METHOD_GATES"
 
 
 class DraftServiceTests(unittest.TestCase):

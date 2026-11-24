@@ -1,4 +1,4 @@
-"""Port of advanced_mcp's allowlisted MCP dispatch, scoped to planning records."""
+"""Allowlisted MCP dispatch for planning records, adapted from MCP Gateway."""
 
 import argparse
 import asyncio
