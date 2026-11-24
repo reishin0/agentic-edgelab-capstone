@@ -24,6 +24,7 @@ from edgelab.market_history import CALENDAR, calendar_2025, store_history
 from edgelab.methods import local_notes
 from edgelab.pair_console import PairConsole, PairConsoleError
 from edgelab.planning import search
+from edgelab.providers import ORNITH_PLANNER_MODEL, ORNITH_PLANNER_PROFILE
 from edgelab.reporting import report_from_journal
 from edgelab.research import ResearchService
 from test_history import make_export
@@ -75,7 +76,7 @@ class PairConsoleTests(unittest.TestCase):
         capture = {"start": "2025-01-02", "end": "2025-10-31"}
         invalid = (
             {"b": "AAPL"}, {"b": "UNKNOWN"}, {"b": "NVDA"}, {"manifest": "0" * 64},
-            {"manifest": None}, {"capture": capture}, {"unexpected": True},
+            {"manifest": None}, {"capture": capture}, {"unexpected": True}, {"ornith": "true"},
             {"b": "EUR/USD", "manifest": None, "capture": capture},
             {"manifest": None, "capture": {**capture, "end": "2025-11-04"}},
         )
@@ -86,6 +87,57 @@ class PairConsoleTests(unittest.TestCase):
             with self.subTest(job_id=job_id), self.assertRaises(PairConsoleError):
                 self.console.status(job_id)
         self.assertIsNone(self.console.bootstrap()["job"])
+        self.assertFalse(self.journal.exists())
+
+    def test_ornith_ranking_labels_only_the_matching_saved_candidate(self):
+        class BICAdviser:
+            models = {"planner": ORNITH_PLANNER_MODEL}
+
+            def choose(self, role, prompt, options, timeout):
+                return "eg_bic"
+
+        (self.folder / "providers.env").touch()
+        self.console = self.open_console(root=self.folder)
+        service = ResearchService(Journal(self.journal), history=self.history)
+        trace = search(local_notes("cointegration"), BICAdviser(), use_model_critic=False)
+        trace.update(adviser_provider="lm_studio", planner_profile=ORNITH_PLANNER_PROFILE)
+        plan = service.record_plan(str(uuid4()), None, trace, "local")
+        plan = json.loads(json.dumps(plan))
+
+        with patch.object(self.console, "_capstone", return_value=plan) as runner:
+            started = self.console.prepare({**self.selection, "ornith": True})
+            prepared = self.wait_for_state(started["id"], "awaiting_approval")
+        runner.assert_called_once_with(
+            ["--settings-file", str(self.folder.resolve() / "providers.env"), "plan", "--history-manifest",
+             str(self.manifest.resolve()), "--lm-studio", "--model-id", ORNITH_PLANNER_MODEL, "--allow-provider-io"],
+            timeout=60, label="Planning",
+        )
+        candidates = {candidate["lag_policy"]: candidate for candidate in prepared["candidates"]}
+        self.assertEqual(set(candidates), {"AIC", "BIC"})
+        self.assertEqual(candidates["BIC"]["recommended_by"], ORNITH_PLANNER_PROFILE)
+        self.assertNotIn("recommended_by", candidates["AIC"])
+        for candidate in candidates.values():
+            self.assertEqual(candidate["digest"], fingerprint(candidate["protocol"]))
+        self.assertIsNone(Journal(self.journal, read_only=True).get(plan["run_id"], "approval"))
+        self.console.close()
+        restored = self.open_console(root=self.folder).bootstrap()["job"]
+        self.assertEqual(restored["candidates"], prepared["candidates"])
+
+        for changes in ({"adviser_provider": "openrouter"}, {"role_models": {"planner": "other"}},
+                        {"planner_profile": ""}, {"model_decisions": []},
+                        {"model_decisions": trace["model_decisions"] * 2}):
+            with self.subTest(changes=changes):
+                unlabelled = PairConsole._verified_candidates({**plan, **changes}, plan["run_id"], self.history)
+                self.assertTrue(all("recommended_by" not in candidate for candidate in unlabelled))
+
+    def test_requested_ornith_without_settings_stops_before_planning(self):
+        self.console = self.open_console(root=self.folder)
+        with patch.object(self.console, "_capstone") as runner:
+            started = self.console.prepare({**self.selection, "ornith": True})
+            failed = self.wait_for_state(started["id"], "failed")
+        runner.assert_not_called()
+        self.assertIn("Configure the local Ornith Planner", "\n".join(failed["console"]))
+        self.assertEqual(failed["candidates"], [])
         self.assertFalse(self.journal.exists())
 
     def wait_for_state(self, job_id, expected):
@@ -251,8 +303,16 @@ with patch.object(console, "_start"):
             with self.assertRaisesRegex(PairConsoleError, "approved execution was interrupted") as conflict:
                 restored_before_reservation.prepare(self.selection)
             self.assertEqual(conflict.exception.status, 409)
+            # Replacing the receipt must retain the interruption across the next restart.
+            with restored_before_reservation._lock:
+                restored_before_reservation._save(restored_before_reservation._find(started["id"]))
             worker.assert_not_called()
             restored_before_reservation.close()
+            resaved = self.open_console()
+            with self.assertRaisesRegex(PairConsoleError, "approved execution was interrupted"):
+                resaved.prepare(self.selection)
+            worker.assert_not_called()
+            resaved.close()
 
         class Interrupted(BaseException):
             pass

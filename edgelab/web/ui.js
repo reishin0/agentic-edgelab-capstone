@@ -68,36 +68,46 @@ function svg(tag, attrs, text) {
 }
 
 function chart(id, data, lines, label, missing, seriesLabels = {}) {
-  if (!data || !lines.every(key => Array.isArray(data[key]) && data[key].length > 1 &&
+  if (!Array.isArray(data?.days) || data.days.length < 2 || !lines.every(key =>
+      Array.isArray(data[key]) && data[key].length === data.days.length &&
       data[key].every(Number.isFinite))) return empty(id, missing);
-  const flat = lines.flatMap(key => data[key]);
   const spread = id === "spread";
-  const min = Math.min(...flat, ...(spread ? [0] : [])), max = Math.max(...flat, ...(spread ? [0] : []));
-  const padding = (max - min) * .06 || 1, lo = min - padding, hi = max + padding;
-  const x = i => 56 + 456 * i / (data.days.length - 1);
-  const y = n => 163 - 144 * (n - lo) / (hi - lo);
-  const figure = svg("svg", {viewBox: "0 0 528 190", role: "img", "aria-label": label});
-  for (let i = 0; i <= 4; i++) {
-    const value = lo + i * (hi - lo) / 4, yp = y(value);
-    figure.append(svg("line", {x1: 56, x2: 512, y1: yp, y2: yp, class: "grid"}),
-      svg("text", {x: 48, y: yp + 4, "text-anchor": "end", class: "axis"}, value.toFixed(1)));
-  }
-  if (spread) figure.append(svg("line", {x1: 56, x2: 512, y1: y(0), y2: y(0), class: "grid zero"}));
+  const left = 72, right = 512, top = 19, height = 144, rowStep = 170;
+  const bottom = top + height + (lines.length - 1) * rowStep;
+  const x = i => left + (right - left) * i / (data.days.length - 1);
+  const figure = svg("svg", {viewBox: `0 0 528 ${bottom + 27}`, role: "img", "aria-label": label});
+  if (lines.length > 1) figure.append(svg("text", {x: right, y: top - 6,
+    "text-anchor": "end", class: "axis"}, "Separate price scales"));
+  lines.forEach((key, row) => {
+    const values = data[key], rowTop = top + row * rowStep;
+    const min = Math.min(...values, ...(spread ? [0] : [])), max = Math.max(...values, ...(spread ? [0] : []));
+    const padding = (max - min || Math.abs(max) || 1) * .06;
+    const lo = min - padding, hi = max + padding, step = (hi - lo) / 4;
+    const decimals = Math.min(8, Math.max(0, -Math.floor(Math.log10(step))));
+    const y = value => rowTop + height - height * (value - lo) / (hi - lo);
+    if (!spread) figure.append(svg("text", {x: left, y: rowTop - 6, class: "axis"}, seriesLabels[key]));
+    for (let i = 0; i <= 4; i++) {
+      const value = lo + i * step, yp = y(value);
+      const tick = step < 1e-8 || Math.abs(value) >= 1e8 ? value.toExponential(2) : value.toFixed(decimals);
+      figure.append(svg("line", {x1: left, x2: right, y1: yp, y2: yp, class: "grid"}),
+        svg("text", {x: left - 8, y: yp + 4, "text-anchor": "end", class: "axis"}, tick));
+    }
+    if (spread) figure.append(svg("line", {x1: left, x2: right, y1: y(0), y2: y(0), class: "grid zero"}));
+    figure.append(svg("polyline", {class: "series-" + key,
+      points: values.map((value, i) => x(i).toFixed(2) + "," + y(value).toFixed(2)).join(" ")}));
+  });
   for (const [fraction, anchor] of [[0, "start"], [.5, "middle"], [1, "end"]]) {
     const i = Math.round((data.days.length - 1) * fraction);
-    figure.append(svg("text", {x: x(i), y: 184, "text-anchor": anchor, class: "axis"}, data.days[i]));
+    figure.append(svg("text", {x: x(i), y: bottom + 21, "text-anchor": anchor, class: "axis"}, data.days[i]));
   }
-  for (const key of lines) {
-    figure.append(svg("polyline", {class: "series-" + key,
-      points: data[key].map((value, i) => x(i).toFixed(2) + "," + y(value).toFixed(2)).join(" ")}));
-  }
-  const cursor = svg("line", {y1: 19, y2: 163, class: "grid zero", visibility: "hidden"});
+  const cursor = svg("line", {y1: top, y2: bottom, class: "grid zero", visibility: "hidden"});
   figure.append(cursor);
   const detail = node("small", data.source, "empty");
   figure.addEventListener("pointermove", event => {
     const rect = figure.getBoundingClientRect();
     const px = (event.clientX - rect.left) * 528 / rect.width;
-    const i = Math.min(data.days.length - 1, Math.max(0, Math.round((px - 56) / 456 * (data.days.length - 1))));
+    const i = Math.min(data.days.length - 1, Math.max(0,
+      Math.round((px - left) / (right - left) * (data.days.length - 1))));
     cursor.setAttribute("x1", x(i));
     cursor.setAttribute("x2", x(i));
     cursor.setAttribute("visibility", "visible");
@@ -448,7 +458,8 @@ function show(run, cfg, demo, loading = false) {
   const seriesLabels = symbols ? {a: "A = " + pair[0], b: "B = " + pair[1]} : {a: "A", b: "B"};
   $("series-a-label").textContent = seriesLabels.a;
   $("series-b-label").textContent = seriesLabels.b;
-  chart("series", run?.chart, ["a", "b"], `Approved in-sample series ${seriesLabels.a} and ${seriesLabels.b}`,
+  chart("series", run?.chart, ["a", "b"],
+    `Approved in-sample series ${seriesLabels.a} and ${seriesLabels.b} on separate price scales`,
     chartMissing, seriesLabels);
   chart("spread", run?.chart, ["spread"], "In-sample OLS residual A on B",
     run?.chart ? "No fitted relationship recorded." : chartMissing);
@@ -581,6 +592,11 @@ async function refreshSelectedRun() {
   }
 }
 
+const savedRunLabels = {
+  continue: "Continue", revise: "Revise", unresolved: "Unresolved", stop: "Stop",
+  awaiting_approval: "Awaiting approval", approved: "Approval recorded", "reconciliation required": "Reconciliation required",
+};
+
 async function refreshRuns() {
   const request = ++runListRead.request;
   const evidenceRequest = runEvidenceRead.request;
@@ -592,9 +608,12 @@ async function refreshRuns() {
     const data = await api("/api/runs");
     if (request !== runListRead.request) return;
     const selected = select.disabled ? null : select.value;
-    const id = data.runs.find(run => run.id === selected)?.id ?? data.runs[0]?.id ?? null;
-    const options = data.runs.map(run => {
-      const option = node("option", (run.symbols?.join(" / ") ?? nice(run.label)) + " | " + run.id.slice(0, 8));
+    const runs = [...data.runs].sort((a, b) => verdictOrder(a.verdict) - verdictOrder(b.verdict));
+    const id = runs.find(run => run.id === selected)?.id ?? runs[0]?.id ?? null;
+    const options = runs.map(run => {
+      const label = run.symbols?.join(" / ") ?? nice(run.label);
+      const status = savedRunLabels[run.verdict ?? run.status];
+      const option = node("option", [label, status, run.id.slice(0, 8)].filter(Boolean).join(" · "));
       option.value = run.id;
       return option;
     });
@@ -604,7 +623,7 @@ async function refreshRuns() {
     select.disabled = !id;
     if (id !== selected || evidenceRequest === runEvidenceRead.request) refreshSelectedRun();
     document.dispatchEvent(new CustomEvent("edgelab:runs-refreshed", {
-      detail: {runIds: data.runs.map(run => run.id)}
+      detail: {runIds: runs.map(run => run.id)}
     }));
   } catch (error) {
     if (request !== runListRead.request) return;
@@ -776,6 +795,11 @@ async function loadCrossAssets() {
 let leaderboardRequest = 0;
 let leaderboardLoaded = false;
 let leaderboardLoading = false;
+
+function verdictOrder(status) {
+  return status === "continue" ? 0 : status === "stop" ? 2 : 1;
+}
+
 async function loadLeaderboard() {
   const request = ++leaderboardRequest;
   leaderboardLoading = true;
@@ -797,7 +821,11 @@ async function loadLeaderboard() {
       "fx-crypto": "FX / crypto",
     };
     const stability = {"break_detected": "Break detected", "no_break_detected": "No break detected"};
-    host.replaceChildren(...snapshot.groups.map(group => {
+    const groups = snapshot.groups.map(group => ({
+      ...group,
+      rows: [...group.rows].sort((a, b) => verdictOrder(a.status) - verdictOrder(b.status)),
+    })).sort((a, b) => verdictOrder(a.rows[0]?.status) - verdictOrder(b.rows[0]?.status));
+    host.replaceChildren(...groups.map(group => {
       const panel = node("article", undefined, "panel");
       const heading = node("div", undefined, "panel-head");
       heading.append(node("h3", labels[group.kind]), node("span", group.label));

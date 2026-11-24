@@ -5,6 +5,7 @@
   const panel = byId("pair-console");
   const assetA = byId("pair-a"), assetB = byId("pair-b");
   const history = byId("pair-history"), start = byId("pair-start"), end = byId("pair-end");
+  const ornith = byId("pair-ornith");
   const prepare = byId("pair-prepare"), review = byId("pair-review"), candidate = byId("pair-candidate");
   const approve = byId("pair-approve"), discard = byId("pair-discard"), output = byId("pair-output");
   const retry = byId("pair-retry"), protocolDetails = byId("pair-protocol-details"), protocol = byId("pair-protocol");
@@ -61,7 +62,7 @@
     const captured = history.value === "capture";
     const locked = submitting || checking || needsRetry || active();
     assetA.disabled = assetB.disabled = locked || assets.size < 2;
-    history.disabled = locked;
+    history.disabled = ornith.disabled = locked;
     start.disabled = end.disabled = locked || !captured;
     byId("pair-capture-dates").hidden = !captured;
     byId("pair-input-note").textContent = captured ?
@@ -154,8 +155,10 @@
     }
     review.hidden = job.state !== "awaiting_approval";
     if (!review.hidden && !wasReviewing) {
-      candidate.replaceChildren(new Option("Choose a lag policy", ""), ...job.candidates.map(item =>
-        new Option(item.lag_policy, item.digest)));
+      const options = job.candidates.map(item => new Option(
+        item.recommended_by === "ornith" ? `${item.lag_policy} — Ornith guided (Recommended)` : item.lag_policy,
+        item.digest));
+      candidate.replaceChildren(new Option("Choose a lag policy", ""), ...options);
     }
     if (job.state === "complete" && job.id !== acknowledged && ready.dataset.job !== job.id) {
       ready.textContent = `${job.symbols.join(" / ")} report is ready. Click Refresh, then select this pair in the saved run list.`;
@@ -231,7 +234,9 @@
     if (prepare.disabled) return;
     const [a, b] = selectedPair();
     const capture = history.value === "capture" ? {start: start.value, end: end.value} : null;
-    submit("/prepare", {a, b, manifest: capture ? null : history.value, capture});
+    const body = {a, b, manifest: capture ? null : history.value, capture};
+    if (ornith.checked) body.ornith = true;
+    submit("/prepare", body);
   });
   approve.addEventListener("click", () => {
     if (!approve.disabled) submit("/approve", {job_id: job.id, digest: candidate.value});
@@ -256,6 +261,13 @@
       showError(recovered ? "" : message);
       if (data === null) {
         uncertainWrite = null;
+        pendingAcknowledgment = null;
+        job = null;
+        pairKey = "";
+        historyVersion++;
+        ready.textContent = "";
+        delete ready.dataset.job;
+        delete ready.dataset.run;
         panel.hidden = true;
         byId("dashboard-mode").textContent = "Local read-only";
         return;

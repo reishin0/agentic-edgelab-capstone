@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from edgelab.dashboard import configuration, demo_runs, handler, news_view, recent_runs, run_view, seed_demo_news
 from edgelab.history import FrozenHistory
-from edgelab.journal import Journal
+from edgelab.journal import Journal, JournalConflict
 from edgelab.methods import local_notes
 from edgelab.news import NEWS_CACHE, cache, fetch
 from edgelab.planning import search
@@ -159,7 +159,9 @@ class DashboardTests(unittest.TestCase):
         run = str(uuid4())
         plan = service.record_plan(run, "shared-trend", search(local_notes("cointegration")), "local")
         view = Journal(self.path, read_only=True)
-        self.assertEqual(recent_runs(view), [{"id": run, "label": "shared-trend"}])
+        self.assertEqual(recent_runs(view), [{
+            "id": run, "label": "shared-trend", "status": "awaiting_approval", "verdict": None,
+        }])
         self.assertIsNone(run_view(view, run)["chart"])
         service.approve(run, plan["candidates"][0]["digest"])
         self.assertIsNone(run_view(view, run)["chart"])
@@ -172,6 +174,33 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(data["reviews"]["diagnostics"]["decision"], "proceed")
         self.assertEqual(before, self.path.read_bytes())
         tool.assert_called_once()
+
+    def test_recent_runs_reflect_verified_verdicts_and_pending_execution(self):
+        journal = Journal(self.path)
+        reader = Journal(self.path, read_only=True)
+        states = [
+            ([], "awaiting_approval", None),
+            (["approval"], "approved", None),
+            (["approval", "reserved:diagnostics"], "reconciliation required", None),
+            (["approval", "reserved:diagnostics", "result:diagnostics"], "approved", None),
+            (["verdict"], "finished", "unresolved"),
+            (["approval", "verdict"], "finished", "continue"),
+            (["approval", "verdict"], "finished", "stop"),
+        ]
+        expected = []
+        for keys, status, verdict in states:
+            run = str(uuid4())
+            journal.append(run, "plan", {"status": "awaiting_approval", "input": {"case": "shared-trend"}})
+            for key in keys:
+                journal.append(run, key, {"verdict": verdict} if key == "verdict" else {"fixture": key})
+            expected.append({"id": run, "label": "shared-trend", "status": status, "verdict": verdict})
+        before = self.path.read_bytes()
+        self.assertEqual(recent_runs(reader), list(reversed(expected)))
+        self.assertEqual(self.path.read_bytes(), before)
+        with journal.connect() as db:
+            db.execute("UPDATE edgelab_events SET body = '{}' WHERE run_id = ? AND event_key = 'verdict'", (run,))
+        with self.assertRaises(JournalConflict):
+            recent_runs(reader)
 
     def test_malformed_spread_fit_preserves_recorded_verdict_and_price_chart(self):
         journal = Journal(self.path)

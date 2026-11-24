@@ -53,21 +53,40 @@ def historical_symbols(history: dict) -> list[str] | None:
     return list(match.groups()) if match else None
 
 
+def _run_status(events: dict) -> str:
+    if events.get("verdict"):
+        return "finished"
+    if any(key.startswith("reserved:") and f"result:{key[9:]}" not in events for key in events):
+        return "reconciliation required"
+    return "approved" if events.get("approval") else events["plan"]["status"]
+
+
 def recent_runs(journal: Journal) -> list[dict]:
     if not journal.path.is_file():
         return []
     with journal.connect() as db:
         rows = db.execute("""
-            SELECT run_id, body, body_hash FROM edgelab_events
-            WHERE event_key = 'plan' ORDER BY seq DESC LIMIT 30
+            WITH recent AS (
+                SELECT run_id, seq FROM edgelab_events
+                WHERE event_key = 'plan' ORDER BY seq DESC LIMIT 30
+            )
+            SELECT event.run_id, event.event_key, event.body, event.body_hash
+            FROM recent JOIN edgelab_events AS event ON event.run_id = recent.run_id
+            WHERE event.event_key IN ('plan', 'approval', 'verdict')
+               OR event.event_key GLOB 'reserved:*' OR event.event_key GLOB 'result:*'
+            ORDER BY recent.seq DESC, event.seq
         """).fetchall()
+    by_run = {}
+    for run_id, key, body, digest in rows:
+        by_run.setdefault(run_id, {})[key] = Journal._decode((body, digest))
     runs = []
-    for run_id, body, digest in rows:
-        value = Journal._decode((body, digest))
-        data = value["input"]
+    for run_id, events in by_run.items():
+        data = events["plan"]["input"]
         history = data.get("history")
         label = data.get("case") or history["classification"] + " history"
-        entry = {"id": validate_id(run_id), "label": label}
+        verdict = events.get("verdict")
+        entry = {"id": validate_id(run_id), "label": label, "status": _run_status(events),
+                 "verdict": verdict["verdict"] if verdict else None}
         if history and (symbols := historical_symbols(history)):
             entry["symbols"] = symbols
         runs.append(entry)
@@ -133,10 +152,7 @@ def run_view(journal: Journal, run_id: str, history: FrozenHistory | None = None
         history = history_by_hash.get(historical_input["manifest_sha256"])
     if history is None and pair_console is not None and historical_input and approval and results:
         history = pair_console.history_for_view(historical_input["manifest_sha256"])
-    reserved = [key[9:] for key in by_key if key.startswith("reserved:")]
-    status = ("finished" if verdict else "reconciliation required" if set(reserved) - results.keys()
-              else "approved" if approval else plan["status"])
-    return {"plan": plan, "approval": approval, "verdict": verdict, "status": status,
+    return {"plan": plan, "approval": approval, "verdict": verdict, "status": _run_status(by_key),
             "timeline": [{"key": event["key"], "sha256": event["sha256"]} for event in events],
             "results": results, "reviews": reviews,
             "symbols": historical_symbols(historical_input) if historical_input else None,

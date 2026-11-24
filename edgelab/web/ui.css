@@ -120,8 +120,10 @@ small, .metrics span, .section-head > span, .panel-head > span, .providers span 
 .pair-fields[hidden] { display: none; }
 .pair-console label { display: block; min-width: 0; color: var(--ink); font-weight: 650; }
 .pair-console label[hidden] { display: none; }
-.pair-console input, .pair-console select { display: block; width: 100%; min-width: 0; height: 36px; margin-top: 3px;
+.pair-console input:not([type="checkbox"]), .pair-console select { display: block; width: 100%; min-width: 0; height: 36px; margin-top: 3px;
   padding: 0 9px; border: 1px solid #c4cecc; border-radius: 5px; background: var(--white); color: var(--ink); font: inherit; font-weight: 400; }
+.pair-console .pair-adviser { display: flex; align-items: center; gap: 8px; width: fit-content; }
+.pair-adviser input { margin: 0; }
 .pair-console input:focus-visible, .pair-output:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .pair-console input:disabled, .pair-console select:disabled { color: var(--muted); background: #f1f4f3; }
 .pair-note { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
@@ -316,7 +318,7 @@ footer span { color: var(--muted); font-weight: 400; margin-left: 9px; }
   body { display: block; height: auto; }
   #view-content { container-type: normal; overflow: visible; scrollbar-gutter: auto; }
 }
-@media (max-height: 13rem) {
-  body:has(#load-error:not([hidden]), #pair-ready:not(:empty)) { display: block; height: auto; }
-  body:has(#load-error:not([hidden]), #pair-ready:not(:empty)) #view-content { container-type: normal; overflow: visible; scrollbar-gutter: auto; }
+@media (max-height: 13rem), (max-height: 32rem) and (max-width: 590px) {
+  body:has(#run-loading:not([hidden]), #load-error:not([hidden]), #pair-ready:not(:empty)) { display: block; height: auto; }
+  body:has(#run-loading:not([hidden]), #load-error:not([hidden]), #pair-ready:not(:empty)) #view-content { container-type: normal; overflow: visible; scrollbar-gutter: auto; }
 }

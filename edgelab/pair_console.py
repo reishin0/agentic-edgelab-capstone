@@ -20,6 +20,7 @@ from .history import FrozenHistory
 from .journal import Journal
 from .market_history import MAX_SESSIONS, calendar_2025
 from .messages import run_id, sha
+from .providers import ORNITH_PLANNER_MODEL, ORNITH_PLANNER_PROFILE
 from .reporting import report_from_journal
 from .research import release_fingerprint
 from .stat_tools import MIN_SAMPLE, canonical_day
@@ -74,7 +75,8 @@ class _Job:
 
     def receipt(self) -> dict:
         return {"id": self.id, "symbols": list(self.symbols), "manifest": self.manifest,
-                "state": self.state, "console": self.console, "run_id": self.run_id,
+                "state": "executing" if self.interrupted else self.state,
+                "console": self.console, "run_id": self.run_id,
                 "approval": self.approval}
 
 
@@ -359,8 +361,12 @@ class PairConsole:
         return str(start), str(end)
 
     def prepare(self, body: object) -> dict:
-        if type(body) is not dict or body.keys() != {"a", "b", "manifest", "capture"}:
+        fields = {"a", "b", "manifest", "capture"}
+        if type(body) is not dict or not fields <= body.keys() <= fields | {"ornith"}:
             raise PairConsoleError("Supply two assets and one frozen history or explicit capture window.")
+        ornith = body.get("ornith", False)
+        if type(ornith) is not bool:
+            raise PairConsoleError("Ornith guidance must be explicitly enabled or disabled.")
         symbols = self._symbols(body["a"], body["b"])
         digest, capture = body["manifest"], body["capture"]
         if (digest is None) == (capture is None):
@@ -384,7 +390,7 @@ class PairConsole:
             job = _Job(str(uuid4()), symbols, item.history.manifest_sha256 if item else None,
                        console=[f"Preparing {symbols[0]} / {symbols[1]}."])
             self._save(job)
-            self._start(job, self._prepare, capture)
+            self._start(job, self._prepare, capture, ornith)
             return self._response(self._jobs[job.id])
 
     def _find(self, job_id: object) -> _Job:
@@ -431,10 +437,10 @@ class PairConsole:
             self._save(job)
             return self._response(job)
 
-    def _start(self, job: _Job, step, argument) -> None:
+    def _start(self, job: _Job, step, *arguments) -> None:
         def work() -> None:
             try:
-                step(job, argument)
+                step(job, *arguments)
             except Exception as error:
                 message = str(error) if isinstance(error, PairConsoleError) else "The console could not verify this step."
                 with self._lock:
@@ -504,7 +510,7 @@ class PairConsole:
             self._inputs[digest] = item
         return item
 
-    def _prepare(self, job: _Job, capture: tuple[str, str] | None) -> None:
+    def _prepare(self, job: _Job, capture: tuple[str, str] | None, ornith: bool) -> None:
         item = self._capture(job, capture) if capture is not None else self._inputs.get(job.manifest)
         if item is None:
             raise PairConsoleError("No frozen history was selected.")
@@ -512,17 +518,34 @@ class PairConsole:
         if history.manifest_sha256 != item.history.manifest_sha256:
             raise PairConsoleError("The selected manifest changed. A fresh verified snapshot is required.")
         self._log(job, "Frozen history\n" + json.dumps(item.summary(), indent=2))
-        self._log(job, "Planning with the local method notes and no model adviser.")
-        plan = self._capstone(["plan", "--history-manifest", str(item.path), "--no-model"],
-                              timeout=60, label="Planning")
+        arguments = ["plan", "--history-manifest", str(item.path)]
+        if ornith:
+            settings = self._root / "providers.env"
+            if not settings.is_file():
+                raise PairConsoleError("Configure the local Ornith Planner in providers.env, or prepare without guidance.")
+            self._log(job, "Planning with the local method notes and the blinded Ornith Planner.")
+            arguments = ["--settings-file", str(settings), *arguments, "--lm-studio", "--model-id",
+                         ORNITH_PLANNER_MODEL, "--allow-provider-io"]
+        else:
+            self._log(job, "Planning with the local method notes and no model adviser.")
+            arguments.append("--no-model")
+        try:
+            plan = self._capstone(arguments, timeout=60, label="Planning")
+        except PairConsoleError as error:
+            if not ornith:
+                raise
+            raise PairConsoleError(f"{error} Check that Ornith is configured and loaded in local LM Studio.") from error
         planned_run = run_id(plan["run_id"])
         candidates = self._verified_candidates(plan, planned_run, history)
-        summary = [{"digest": candidate["digest"], "lag_policy": candidate["lag_policy"]} for candidate in candidates]
+        summary = [{key: value for key, value in candidate.items() if key != "protocol"} for candidate in candidates]
         with self._lock:
             current = self._jobs[job.id]
             lines = [*current.console, "Saved plan\n" + json.dumps({"run_id": planned_run, "status": plan["status"],
                      "reason": plan.get("reason"), "candidates": summary}, indent=2)]
-            if candidates and plan["status"] == "awaiting_approval":
+            if ornith and candidates and not any(candidate.get("recommended_by") for candidate in candidates):
+                lines.append("Ornith guidance could not be verified. Check the Ornith profile or prepare without guidance.")
+                state = "failed"
+            elif candidates and plan["status"] == "awaiting_approval":
                 state = "awaiting_approval"
             else:
                 lines.append("The planner did not qualify a protocol for execution.")
@@ -540,6 +563,16 @@ class PairConsole:
                     or protocol["lag_policy"] not in {"AIC", "BIC"} or fingerprint(protocol) != digest):
                 raise PairConsoleError("The planner did not return a verified protocol for this run.")
             candidates.append({"digest": digest, "lag_policy": protocol["lag_policy"], "protocol": protocol})
+        if (plan.get("adviser_provider") == "lm_studio"
+                and plan.get("planner_profile") == ORNITH_PLANNER_PROFILE
+                and plan.get("role_models", {}).get("planner") == ORNITH_PLANNER_MODEL):
+            rankings = [entry.get("choice") for entry in plan.get("model_decisions", [])
+                        if entry.get("role") == "planner" and entry.get("stage") == "rank_depth_2"]
+            if len(rankings) == 1:
+                policy = {"eg_aic": "AIC", "eg_bic": "BIC"}.get(rankings[0])
+                matches = [candidate for candidate in candidates if candidate["lag_policy"] == policy]
+                if len(matches) == 1:
+                    matches[0]["recommended_by"] = ORNITH_PLANNER_PROFILE
         return candidates
 
     def _execute(self, job: _Job, digest: str) -> None:
@@ -576,4 +609,5 @@ class PairConsole:
         if not candidates and item is not None:
             plan, = (event["value"] for event in output["bundle"]["events"] if event["key"] == "plan")
             candidates = self._verified_candidates(plan, job.run_id, item.history)
-        return replace(job, console=lines, candidates=candidates, verdict=report["verdict"], state="complete")
+        return replace(job, console=lines, candidates=candidates, verdict=report["verdict"], state="complete",
+                       interrupted=False)

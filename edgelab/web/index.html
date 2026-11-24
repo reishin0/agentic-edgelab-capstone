@@ -247,6 +247,9 @@
             <label for="pair-end">Last session<input id="pair-end" type="date" value="2025-10-31" min="2025-01-02" max="2025-10-31"></label>
           </div>
           <p id="pair-input-note" class="pair-note">Choose two distinct assets from the waitlists.</p>
+          <label for="pair-ornith" class="pair-adviser">
+            <input id="pair-ornith" type="checkbox"> Ask local Ornith to recommend a lag policy
+          </label>
           <div class="pair-actions">
             <button id="pair-prepare" type="submit" disabled>Prepare plan</button>
             <button id="pair-retry" type="button" hidden>Retry console</button>
@@ -298,9 +301,9 @@
           <b>1.1</b><h3>Project scoping and initial agent design</h3>
           <div class="checkpoint-details">
             <p><strong>Course objective</strong> Define the problem, who the agent serves and what it should do.</p>
-            <p><strong>EdgeLab</strong> Helps researchers assess whether two asset prices share a stable long-run
-              relationship. Python runs the calculations. In a synthetic run, Ornith in LM Studio supplied one
-              structured choice, and EdgeLab saved two eligible protocols for approval.</p>
+            <p><strong>EdgeLab</strong> Scoped an LM Studio assistant to help researchers assess long-run price
+              relationships, with Python handling the calculations. In the reported synthetic run, Ornith supplied
+              one structured choice. EdgeLab saved two eligible protocol candidates and stopped for approval.</p>
           </div>
         </div>
         <div>
@@ -308,9 +311,10 @@
           <div class="checkpoint-details">
             <p><strong>Course objective</strong> Refine how the agent makes decisions, what it remembers and which
               tools it uses.</p>
-            <p><strong>EdgeLab</strong> The researcher approves the exact saved run and protocol digest before
-              execution. SQLite preserves plans, tool calls, Critic reviews and verdicts. Native LangGraph
-              checkpointing and cloud-to-local failover remain deployment options.</p>
+            <p><strong>EdgeLab</strong> The design added ReAct-style branching, budgets and a ledger to retain each
+              trial when a failed prerequisite redirects work. The implemented CLI requires approval of the exact
+              saved run and protocol digest before execution. LiteLLM role routing, cloud-to-local failover and
+              native LangGraph checkpointing remain deployment options.</p>
           </div>
         </div>
         <div>
@@ -318,9 +322,10 @@
           <div class="checkpoint-details">
             <p><strong>Course objective</strong> Choose what knowledge the agent should retrieve, how it finds it and
               how it uses source evidence to ground its decisions.</p>
-            <p><strong>EdgeLab</strong> Planning uses reviewed bundled notes by default. Optional Pinecone retrieval
-              verifies the required ADF, KPSS and Engle–Granger records by exact ID. The dashboard diagnostic
-              verified all three records. The separate semantic ranking found one of three.</p>
+            <p><strong>EdgeLab</strong> Added reviewed, versioned method notes and source locators. Planning defaults
+              to bundled notes. Optional Pinecone planning fetches ADF, KPSS and Engle–Granger by exact ID and
+              verifies them against the reviewed corpus. Missing or mismatched evidence leaves the plan unresolved.
+              The dashboard diagnostic verified all three exact records. Its separate semantic ranking found only KPSS.</p>
           </div>
         </div>
         <div>
@@ -328,9 +333,10 @@
           <div class="checkpoint-details">
             <p><strong>Course objective</strong> Decide where exploring several reasoning paths may help, how to
               compare and prune them, and how to test the benefit.</p>
-            <p><strong>EdgeLab</strong> Beam search ranks protocols before seeing asset labels or observations. It
-              uses width two, four levels and up to 21 visits. OpenRouter is opt-in, and all six tested free routes
-              returned HTTP 404.</p>
+            <p><strong>EdgeLab</strong> Confined Tree-of-Thought to planning to prevent outcome leakage. Beam search
+              ranks protocols before seeing asset labels or observations, using width two, four levels and up to
+              21 visits. Eligible protocol digests are saved for approval. A comparison with step-by-step planning
+              on independently judged cases remains open.</p>
           </div>
         </div>
         <div>
@@ -338,9 +344,10 @@
           <div class="checkpoint-details">
             <p><strong>Course objective</strong> Define each agent’s responsibilities, what information they share and
               how they coordinate their work.</p>
-            <p><strong>EdgeLab</strong> One controller coordinates the Planner, Critic and Reporter. Across 24 blinded
-              synthetic cases, optional CrewAI advice scored 2.08 percentage points above the single-agent approach,
-              below the 10-point gate. Evaluation on independently judged cases remains open.</p>
+            <p><strong>EdgeLab</strong> Put the Planner, Critic and Reporter under one controller. The benchmark
+              evaluated the advisory roles in isolation on 24 blinded synthetic cases with equal model-call budgets.
+              CrewAI scored 30.21% and the single agent scored 28.13%. The 2.08-percentage-point gain missed the
+              10-point gate.</p>
           </div>
         </div>
         <div>
@@ -348,10 +355,16 @@
           <div class="checkpoint-details">
             <p><strong>Course objective</strong> Identify failure modes, set guardrails and evaluation measures, and
               define when a human must intervene.</p>
-            <p><strong>EdgeLab</strong> An uncertain tool outcome blocks dependent calls and produces a read-only
-              handoff. The bundled loopback MCP gateway demonstrated verified synthetic report reads and recovery
-              of an operator-approved draft save by checking its receipt before resuming. Scientific approval and
-              execution stay in the CLI, and the market holdout remains locked.</p>
+            <p><strong>EdgeLab</strong> Defined interventions for ambiguous scope, evidence failures and uncertain
+              tool state. A reservation without a result blocks replay and dependent calls. An operator can request
+              a read-only handoff from the CLI. A hard-guard breach blocks promotion.</p>
+            <p><strong>Pilot targets</strong> Capture 100% of mandatory escalations, keep unnecessary escalations at
+              or below 15%, stop safely or recover on 100% of fault fixtures, and keep planning p95 under four
+              minutes. The pilot plan calls for measuring human review wait separately.</p>
+            <p><strong>Gateway demonstration</strong> The bundled loopback MCP gateway served verified synthetic
+              reports and recovered an operator-approved draft save after a lost response. The operator verified
+              the original backend receipt before resuming. Scientific approval and execution stay in the CLI,
+              and the market holdout remains locked.</p>
           </div>
         </div>
       </div>
